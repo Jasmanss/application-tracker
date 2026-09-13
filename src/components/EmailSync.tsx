@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatDate } from '../dates';
+import { addDays, formatDate, isISODate, todayISO } from '../dates';
 import { fetchApplicationEmails } from '../email/gmail';
 import { parseEmail, parsePastedEmail, reconcile, type Suggestion } from '../email/parse';
 import { readPref, writePref } from '../storage';
@@ -21,6 +21,10 @@ export function EmailSync({ apps, onImport, onClose }: Props) {
   const [tab, setTab] = useState<Tab>('gmail');
   const [clientId, setClientId] = useState(() => readPref('gmailClientId') ?? '');
   const [idInput, setIdInput] = useState(clientId);
+  const [since, setSince] = useState(() => {
+    const saved = readPref('gmailScanSince');
+    return saved && isISODate(saved) ? saved : addDays(todayISO(), -90);
+  });
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
@@ -50,10 +54,11 @@ export function EmailSync({ apps, onImport, onClose }: Props) {
     setError('');
     setSuggestions(null);
     try {
-      const emails = await fetchApplicationEmails(clientId, (p) => setProgress(p.step));
+      const emails = await fetchApplicationEmails(clientId, since, (p) => setProgress(p.step));
       const parsed = emails.flatMap((email) => {
         const result = parseEmail(email);
-        return result ? [{ ...result, id: email.id }] : [];
+        // Belt and braces: drop anything dated before the cutoff.
+        return result && result.date >= since ? [{ ...result, id: email.id }] : [];
       });
       setSuggestions(reconcile(parsed, apps));
     } catch (e) {
@@ -143,21 +148,68 @@ export function EmailSync({ apps, onImport, onClose }: Props) {
                 </div>
               </div>
             ) : (
-              <div className="scan-row">
-                <button type="button" className="btn primary" disabled={busy} onClick={scan}>
-                  {busy ? progress || 'Scanning…' : 'Scan Gmail'}
-                </button>
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => {
-                    setClientId('');
-                    setIdInput(clientId);
-                  }}
-                >
-                  Change Client ID
-                </button>
-              </div>
+              <>
+                <div className="scan-row">
+                  <div className="field since-field">
+                    <label className="field-label" htmlFor="scan-since">
+                      Scan emails after
+                    </label>
+                    <input
+                      id="scan-since"
+                      type="date"
+                      value={since}
+                      max={todayISO()}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (isISODate(value)) {
+                          setSince(value);
+                          writePref('gmailScanSince', value);
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="quick-dates" role="group" aria-label="Quick ranges">
+                    {(
+                      [
+                        ['Last month', -30],
+                        ['Last 3 months', -90],
+                        ['This year', null],
+                      ] as [string, number | null][]
+                    ).map(([label, days]) => {
+                      const value = days === null ? `${todayISO().slice(0, 4)}-01-01` : addDays(todayISO(), days);
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          className="btn small"
+                          aria-pressed={since === value}
+                          onClick={() => {
+                            setSince(value);
+                            writePref('gmailScanSince', value);
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="scan-row">
+                  <button type="button" className="btn primary" disabled={busy} onClick={scan}>
+                    {busy ? progress || 'Scanning…' : `Scan Gmail since ${formatDate(since)}`}
+                  </button>
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => {
+                      setClientId('');
+                      setIdInput(clientId);
+                    }}
+                  >
+                    Change Client ID
+                  </button>
+                </div>
+              </>
             )}
           </>
         )}

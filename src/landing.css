@@ -9,13 +9,13 @@
   --ink-3: #737d90;
   --rule: #cbd2de;
   --rule-soft: #dbe1ea;
-  --pen: #155eef;
+  --pen: #047857;
   --pen-ink: #ffffff;
 
-  --c-applied: #155eef;
-  --c-screening: #0f766e;
+  --c-applied: #0f766e;
+  --c-screening: #a16207;
   --c-offer: #15803d;
-  --c-ghosted: #8a6d3b;
+  --c-ghosted: #78716c;
 
   --f-display: 'Archivo', 'Arial Narrow', system-ui, sans-serif;
   --f-body: 'Public Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -110,7 +110,7 @@ a {
   background: var(--pen);
   border-color: var(--pen);
   color: var(--pen-ink);
-  box-shadow: 0 1px 2px rgb(22 30 44 / 0.16), 0 6px 18px rgb(21 94 239 / 0.22);
+  box-shadow: 0 1px 2px rgb(22 30 44 / 0.16), 0 6px 18px rgb(4 120 87 / 0.22);
 }
 
 .l-btn.primary:hover {

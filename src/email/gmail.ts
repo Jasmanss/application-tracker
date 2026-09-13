@@ -110,11 +110,11 @@ async function gmailGet(token: string, path: string): Promise<Record<string, unk
 /** Inbox searches that catch confirmations, interviews, offers and rejections. */
 const QUERIES = [
   // Confirmation-style subjects from anyone.
-  'subject:("your application" OR "thank you for applying" OR "thanks for applying" OR "application received" OR "we received your application" OR "application was sent" OR "you applied" OR "application confirmation") newer_than:365d',
+  'subject:("your application" OR "thank you for applying" OR "thanks for applying" OR "application received" OR "we received your application" OR "application was sent" OR "you applied" OR "application confirmation")',
   // Anything from the big job platforms and applicant tracking systems.
-  'from:(linkedin.com OR indeed.com OR greenhouse.io OR lever.co OR ashbyhq.com OR myworkday.com OR myworkdayjobs.com OR icims.com OR smartrecruiters.com OR jobvite.com OR workable.com OR workablemail.com OR recruitee.com OR breezy.hr OR wellfound.com OR ziprecruiter.com OR bamboohr.com OR successfactors.com) ("application" OR "applied" OR "interview" OR "offer" OR "unfortunately") newer_than:365d',
+  'from:(linkedin.com OR indeed.com OR greenhouse.io OR lever.co OR ashbyhq.com OR myworkday.com OR myworkdayjobs.com OR icims.com OR smartrecruiters.com OR jobvite.com OR workable.com OR workablemail.com OR recruitee.com OR breezy.hr OR wellfound.com OR ziprecruiter.com OR bamboohr.com OR successfactors.com) ("application" OR "applied" OR "interview" OR "offer" OR "unfortunately")',
   // Interview scheduling and rejections that skip the words above.
-  '("your application" OR "your candidacy") ("interview" OR "unfortunately" OR "next steps" OR "move forward") newer_than:365d',
+  '("your application" OR "your candidacy") ("interview" OR "unfortunately" OR "next steps" OR "move forward")',
 ];
 
 function decodeEntities(text: string): string {
@@ -126,18 +126,25 @@ export interface ScanProgress {
   step: string;
 }
 
-/** Searches the inbox and returns candidate emails (headers + snippet only). */
+/**
+ * Searches the inbox and returns candidate emails (headers + snippet only).
+ * Only emails dated on or after `sinceISO` (yyyy-mm-dd) are searched.
+ */
 export async function fetchApplicationEmails(
   clientId: string,
+  sinceISO: string,
   onProgress: (progress: ScanProgress) => void,
 ): Promise<EmailInput[]> {
   onProgress({ step: 'Waiting for Google sign-in…' });
   const token = await getToken(clientId);
 
+  // Gmail's `after:` takes yyyy/mm/dd and is inclusive of that day.
+  const after = ` after:${sinceISO.replaceAll('-', '/')}`;
+
   onProgress({ step: 'Searching your inbox…' });
   const ids = new Set<string>();
   for (const q of QUERIES) {
-    const data = await gmailGet(token, `/messages?maxResults=100&q=${encodeURIComponent(q)}`);
+    const data = await gmailGet(token, `/messages?maxResults=100&q=${encodeURIComponent(q + after)}`);
     for (const message of (data.messages as { id: string }[] | undefined) ?? []) ids.add(message.id);
   }
 
