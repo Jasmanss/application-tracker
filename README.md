@@ -34,6 +34,7 @@ Your data stays in your browser (localStorage). There's no account or server. Ex
 - **Needs a follow-up list.** Shows applications whose follow-up date has arrived, and anything still in *Applied* after 14 days with no reminder set. One click sets a reminder for a week out or marks the application ghosted.
 - **Summary.** Applications sent, how many heard back, how many reached interviews, offers, and how many you sent this week, plus a bar showing the pipeline by stage.
 - **Search** across company, role, location, source, contact and notes.
+- **Add from email.** Scan your Gmail (read-only, in your browser — see [docs/gmail-setup.md](docs/gmail-setup.md)) or paste any application email; the tracker recognises confirmations, interview invites, offers and rejections from LinkedIn, Indeed, Greenhouse, Lever, Workday and plain recruiter emails, then shows everything for review before importing. Matching applications get a status update instead of a duplicate.
 - **Import and export.** CSV for spreadsheets, JSON for full backups including history. CSV import recognises common column names such as *Company*, *Position*, *Stage* and *Link*, and skips duplicates.
 - **Undo** for moves, deletes, reminders and imports.
 - Keyboard shortcuts: <kbd>/</kbd> to search, <kbd>n</kbd> to add an application.

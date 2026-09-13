@@ -2,15 +2,17 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Attention } from './components/Attention';
 import { Board } from './components/Board';
 import { Drawer } from './components/Drawer';
+import { EmailSync } from './components/EmailSync';
 import { EmptyState } from './components/EmptyState';
 import { Summary } from './components/Summary';
 import { TableView } from './components/TableView';
 import { addDays, formatDate, formatLongDate, plural, todayISO } from './dates';
+import type { Suggestion } from './email/parse';
 import { downloadFile, fromCSV, fromJSON, mergeApps, toCSV, toJSONBackup } from './io';
 import { sampleApps } from './sample';
 import { computeStats, needsAttention } from './stats';
 import { loadApps, newId, readPref, saveApps, writePref } from './storage';
-import { STATUS_LABEL, impliesApplied, type Application, type Draft, type Status } from './types';
+import { STATUS_LABEL, emptyDraft, impliesApplied, type Application, type Draft, type Status } from './types';
 
 type View = 'board' | 'table';
 type Editing = { mode: 'new'; status: Status } | { mode: 'edit'; id: string } | null;
@@ -26,6 +28,7 @@ export default function App() {
   const [view, setView] = useState<View>(() => (readPref('view') === 'table' ? 'table' : 'board'));
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Editing>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
   const [storageOk, setStorageOk] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -179,6 +182,44 @@ export default function App() {
     }
   }
 
+  function importFromEmail(suggestions: Suggestion[]) {
+    const before = apps;
+    const now = new Date().toISOString();
+    let next = [...apps];
+    let added = 0;
+    let updated = 0;
+
+    for (const s of suggestions) {
+      if (s.action === 'update' && s.existingId) {
+        next = next.map((a) => (a.id === s.existingId ? withStatus(a, s.status, now) : a));
+        updated++;
+      } else if (s.action === 'new') {
+        added++;
+        next = [
+          {
+            ...emptyDraft(s.status),
+            company: s.company,
+            role: s.role || 'Untitled role',
+            source: s.source,
+            notes: s.evidence ? `From email: “${s.evidence}”` : '',
+            dateApplied: impliesApplied(s.status) ? s.date : '',
+            id: newId(),
+            history: [{ status: s.status, at: new Date(`${s.date}T12:00:00`).toISOString() }],
+            createdAt: now,
+            updatedAt: now,
+          },
+          ...next,
+        ];
+      }
+    }
+
+    setApps(next);
+    const parts = [added > 0 && `added ${plural(added, 'application')}`, updated > 0 && `updated ${updated}`].filter(
+      Boolean,
+    );
+    if (parts.length > 0) notify(`From email: ${parts.join(', ')}`, () => setApps(before));
+  }
+
   function exportAs(kind: 'csv' | 'json') {
     closeMenu();
     if (kind === 'csv') {
@@ -232,6 +273,16 @@ export default function App() {
           <details className="menu" ref={menu}>
             <summary className="btn">Data</summary>
             <div className="menu-panel">
+              <button
+                type="button"
+                onClick={() => {
+                  closeMenu();
+                  setEmailOpen(true);
+                }}
+              >
+                Add from email
+                <small>Scan Gmail or paste an application email</small>
+              </button>
               <button type="button" onClick={openImport}>
                 Import CSV or JSON
                 <small>Adds to your list and skips duplicates</small>
@@ -267,7 +318,12 @@ export default function App() {
 
       <main className="page">
         {apps.length === 0 ? (
-          <EmptyState onAdd={() => openNew()} onImport={openImport} onSample={loadSample} />
+          <EmptyState
+            onAdd={() => openNew()}
+            onEmail={() => setEmailOpen(true)}
+            onImport={openImport}
+            onSample={loadSample}
+          />
         ) : (
           <>
             <Summary apps={apps} stats={stats} />
@@ -300,6 +356,8 @@ export default function App() {
           </>
         )}
       </main>
+
+      {emailOpen && <EmailSync apps={apps} onImport={importFromEmail} onClose={() => setEmailOpen(false)} />}
 
       {editing && (editing.mode === 'new' || editingApp) && (
         <Drawer

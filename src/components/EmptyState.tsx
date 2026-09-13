@@ -2,11 +2,12 @@ import { Stamp } from './Stamp';
 
 interface Props {
   onAdd: () => void;
+  onEmail: () => void;
   onImport: () => void;
   onSample: () => void;
 }
 
-export function EmptyState({ onAdd, onImport, onSample }: Props) {
+export function EmptyState({ onAdd, onEmail, onImport, onSample }: Props) {
   return (
     <section className="empty">
       <div className="empty-stamps" aria-hidden="true">
@@ -22,6 +23,9 @@ export function EmptyState({ onAdd, onImport, onSample }: Props) {
       <div className="empty-actions">
         <button type="button" className="btn primary" onClick={onAdd}>
           Add your first application
+        </button>
+        <button type="button" className="btn" onClick={onEmail}>
+          Add from email
         </button>
         <button type="button" className="btn" onClick={onImport}>
           Import CSV or JSON
