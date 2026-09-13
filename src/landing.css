@@ -322,28 +322,23 @@ a {
   max-width: 58ch;
 }
 
-/* The app's status badges, reused as row markers. */
+/* The app's status markers, reused as row markers: dot + plain text. */
 .l-stamp {
   justify-self: start;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 2px;
-  padding: 0.45em 0.8em 0.4em;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--c, var(--pen)) 12%, var(--paper));
-  color: var(--c, var(--pen));
-  font-weight: 700;
-  font-size: 11px;
-  line-height: 1;
-  letter-spacing: 0.045em;
-  text-transform: uppercase;
+  gap: 7px;
+  margin-top: 4px;
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.2;
 }
 
 .l-stamp::before {
   content: '';
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--c, var(--pen));
 }
