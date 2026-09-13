@@ -137,36 +137,58 @@ a {
   color: var(--ink);
 }
 
-/* --- Scroll-scrubbed hero: text left, phone right ------------------- */
+/* --- Scroll-scrubbed hero: full-bleed artwork, copy over its paper --- */
 .scrub {
-  height: 380vh;
+  height: 620vh;
 }
 
 .scrub-sticky {
   position: sticky;
   top: 0;
-  display: grid;
-  grid-template-columns: minmax(400px, 42%) 1fr;
   height: 100vh;
   height: 100svh;
   overflow: hidden;
+  background: var(--frame);
+}
+
+.scrub-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Soft scrim over the artwork's own paper, so the copy always reads. */
+.scrub-text::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--frame) 88%, white) 0%,
+    color-mix(in srgb, var(--frame) 70%, transparent) 34%,
+    transparent 56%
+  );
+  pointer-events: none;
 }
 
 .scrub-text {
-  position: relative;
-  display: flex;
-  align-items: center;
-  padding: 72px 8px 72px clamp(28px, 5vw, 88px);
-}
-
-.scrub-copy {
   position: absolute;
   inset: 0;
   display: flex;
+  align-items: center;
+  padding: 72px 8px 72px clamp(28px, 6vw, 110px);
+}
+
+.scrub-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 20px;
-  padding: inherit;
+  max-width: 560px;
+  will-change: opacity, transform;
 }
 
 .scrub-copy[hidden] {
@@ -208,8 +230,9 @@ a {
 /* Progress rail: fills as the scene plays. */
 .scrub-progress {
   position: absolute;
-  left: clamp(28px, 5vw, 88px);
+  left: clamp(28px, 6vw, 110px);
   bottom: 40px;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -238,19 +261,6 @@ a {
   background: var(--pen);
   transform: scaleX(0);
   transform-origin: left center;
-}
-
-.scrub-visual {
-  position: relative;
-  background: var(--frame);
-}
-
-.scrub-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
 }
 
 /* --- The sheet: features as one ruled document ----------------------- */
@@ -382,23 +392,23 @@ a {
 
 /* --- Responsive ------------------------------------------------------ */
 @media (max-width: 860px) {
-  .scrub-sticky {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 54%) 1fr;
-  }
-
-  .scrub-visual {
-    order: -1;
-  }
-
+  /* Narrow screens: the phone rides high, the copy reads off a scrim below. */
   .scrub-text {
-    align-items: flex-start;
-    padding: 26px 24px 64px;
+    align-items: flex-end;
+    padding: 24px 24px 96px;
+  }
+
+  .scrub-text::before {
+    background: linear-gradient(
+      to top,
+      color-mix(in srgb, var(--frame) 94%, white) 0%,
+      color-mix(in srgb, var(--frame) 82%, transparent) 34%,
+      transparent 58%
+    );
   }
 
   .scrub-copy {
-    justify-content: flex-start;
-    gap: 14px;
+    gap: 12px;
   }
 
   .scrub-copy h1,
