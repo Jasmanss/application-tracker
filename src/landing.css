@@ -1,12 +1,14 @@
-/* Landing page for Callback. Commits to the light "carbon copy" paper look
-   the keyframes were generated in (single-scheme by design). */
+/* Landing page for Callback. Committed to the light "carbon copy" paper
+   world the keyframes were shot in: cool grey desk, ballpoint-blue ink. */
 :root {
   --desk: #e7ebf2;
+  --frame: #dde3ec; /* the artwork's own paper grey */
   --paper: #fbfcfe;
   --ink: #161e2c;
   --ink-2: #4b5567;
   --ink-3: #737d90;
   --rule: #cbd2de;
+  --rule-soft: #dbe1ea;
   --pen: #2a44d2;
   --pen-ink: #ffffff;
 
@@ -25,18 +27,19 @@
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
 body.landing {
   margin: 0;
   background: var(--desk);
   color: var(--ink);
   font-family: var(--f-body);
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--pen);
+  color: var(--pen-ink);
 }
 
 a {
@@ -45,10 +48,11 @@ a {
 
 :focus-visible {
   outline: 2px solid var(--pen);
-  outline-offset: 2px;
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
-/* Header floats over the animation. */
+/* --- Header -------------------------------------------------------- */
 .l-header {
   position: fixed;
   inset: 0 0 auto;
@@ -56,7 +60,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 24px;
+  padding: 16px 28px;
 }
 
 .l-wordmark {
@@ -72,7 +76,7 @@ a {
 .l-nav {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 20px;
 }
 
 .l-nav > a:not(.l-btn) {
@@ -106,29 +110,139 @@ a {
   background: var(--pen);
   border-color: var(--pen);
   color: var(--pen-ink);
+  box-shadow: 0 1px 2px rgb(22 30 44 / 0.16), 0 6px 18px rgb(42 68 210 / 0.22);
 }
 
 .l-btn.primary:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.08);
 }
 
 .l-btn.big {
-  height: 48px;
-  padding: 0 26px;
+  height: 50px;
+  padding: 0 28px;
   font-size: 15px;
+  border-radius: 8px;
 }
 
-/* --- Scroll-scrub hero ------------------------------------------------ */
+.l-quiet-link {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--rule);
+}
+
+.l-quiet-link:hover {
+  color: var(--ink);
+}
+
+/* --- Scroll-scrubbed hero: text left, phone right ------------------- */
 .scrub {
-  height: 420vh;
+  height: 380vh;
 }
 
 .scrub-sticky {
   position: sticky;
   top: 0;
+  display: grid;
+  grid-template-columns: minmax(400px, 42%) 1fr;
   height: 100vh;
   height: 100svh;
   overflow: hidden;
+}
+
+.scrub-text {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 72px 8px 72px clamp(28px, 5vw, 88px);
+}
+
+.scrub-copy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  padding: inherit;
+}
+
+.scrub-copy[hidden] {
+  display: none;
+}
+
+.scrub-copy h1,
+.scrub-copy h2 {
+  margin: 0;
+  font-family: var(--f-display);
+  font-stretch: 118%;
+  font-weight: 800;
+  font-size: clamp(38px, 4.2vw, 62px);
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.scrub-copy em {
+  font-style: normal;
+  color: var(--pen);
+}
+
+.l-sub {
+  margin: 0;
+  max-width: 42ch;
+  color: var(--ink-2);
+  font-size: 16.5px;
+  text-wrap: pretty;
+}
+
+.scrub-cta {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-top: 6px;
+}
+
+/* Progress rail: fills as the scene plays. */
+.scrub-progress {
+  position: absolute;
+  left: clamp(28px, 5vw, 88px);
+  bottom: 40px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scrub-progress-label {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.scrub-progress-track {
+  width: 148px;
+  height: 2px;
+  background: var(--rule);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.scrub-progress-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--pen);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.scrub-visual {
+  position: relative;
+  background: var(--frame);
 }
 
 .scrub-canvas {
@@ -139,144 +253,71 @@ a {
   display: block;
 }
 
-.scrub-copy[hidden] {
-  display: none;
-}
-
-.scrub-copy {
-  position: absolute;
-  inset: 0;
+/* --- The sheet: features as one ruled document ----------------------- */
+.l-sheet-wrap {
+  padding: clamp(72px, 10vw, 128px) 28px 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 14px;
-  padding: 0 24px;
-  text-align: center;
-  pointer-events: none;
 }
 
-.scrub-copy a {
-  pointer-events: auto;
+.l-sheet {
+  width: min(880px, 100%);
+  padding: clamp(36px, 5vw, 64px) clamp(28px, 5vw, 72px);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgb(22 30 44 / 0.06), 0 18px 48px rgb(22 30 44 / 0.09);
 }
 
-.scrub-copy h1,
-.scrub-copy h2 {
-  margin: 0;
+.l-sheet > h2 {
+  margin: 0 0 12px;
   font-family: var(--f-display);
-  font-stretch: 125%;
-  font-weight: 900;
-  font-size: clamp(34px, 6vw, 64px);
-  line-height: 1.02;
+  font-stretch: 118%;
+  font-weight: 800;
+  font-size: clamp(26px, 3vw, 36px);
   letter-spacing: -0.025em;
-  text-transform: uppercase;
-  text-wrap: balance;
-  color: var(--pen);
-  /* Dense paper-white halo: keeps the headline legible even on the artwork. */
-  text-shadow:
-    0 0 1px var(--paper),
-    0 0 3px var(--paper),
-    0 0 6px var(--paper),
-    0 0 12px var(--paper),
-    0 0 12px var(--paper),
-    0 0 24px var(--paper),
-    0 0 48px var(--paper),
-    0 0 80px var(--paper);
 }
 
-.l-eyebrow,
-.l-sub,
-.l-fine {
-  color: var(--ink) !important;
-  text-shadow:
-    0 0 1px var(--paper),
-    0 0 3px var(--paper),
-    0 0 6px var(--paper),
-    0 0 6px var(--paper),
-    0 0 14px var(--paper),
-    0 0 14px var(--paper),
-    0 0 28px var(--paper);
-}
-
-.l-eyebrow {
+.sheet-rows {
   margin: 0;
-  padding: 5px 12px 4px;
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  background: var(--paper);
-  font-family: var(--f-mono);
-  font-size: 12.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-2);
+  padding: 0;
+  list-style: none;
 }
 
-.l-sub {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 16px;
-}
-
-.l-fine {
-  margin: 0;
-  color: var(--ink-3);
-  font-size: 12.5px;
-}
-
-.scrub-hint {
-  position: absolute;
-  bottom: 3.5vh;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--f-mono);
-  font-size: 12.5px;
-  color: var(--ink-3);
-  transition: opacity 0.3s;
-  animation: bob 1.6s ease-in-out infinite;
-}
-
-@keyframes bob {
-  50% {
-    transform: translateX(-50%) translateY(5px);
-  }
-}
-
-/* --- Features --------------------------------------------------------- */
-.l-features {
+.sheet-rows li {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 14px;
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 72px 24px 24px;
+  grid-template-columns: 118px 1fr;
+  gap: 20px;
+  align-items: start;
+  padding: 26px 0;
 }
 
-.l-features article {
-  padding: 22px 20px;
-  border: 1px solid var(--rule);
-  border-radius: 10px;
-  background: var(--paper);
+.sheet-rows li + li {
+  border-top: 1px solid var(--rule-soft);
 }
 
-.l-features h3 {
-  margin: 14px 0 6px;
+.sheet-rows h3 {
+  margin: 0 0 4px;
   font-family: var(--f-display);
   font-stretch: 112%;
   font-weight: 800;
-  font-size: 17px;
+  font-size: 17.5px;
   letter-spacing: -0.01em;
 }
 
-.l-features p {
+.sheet-rows p {
   margin: 0;
   color: var(--ink-2);
-  font-size: 13.5px;
+  font-size: 14.5px;
+  max-width: 58ch;
 }
 
-/* The app's rubber-stamp status chips, reused as feature tags. */
+/* The app's rubber-stamp chips, reused as row markers. */
 .l-stamp {
+  justify-self: start;
   display: inline-block;
-  padding: 0.35em 0.6em 0.3em;
+  margin-top: 2px;
+  padding: 0.4em 0.6em 0.34em;
   border: 2px solid var(--c, var(--pen));
   border-radius: 3px;
   color: var(--c, var(--pen));
@@ -294,23 +335,24 @@ a {
 .l-stamp[data-c='offer'] { --c: var(--c-offer); }
 .l-stamp[data-c='ghosted'] { --c: var(--c-ghosted); }
 
-/* --- CTA + footer ------------------------------------------------------ */
+/* --- CTA + footer ---------------------------------------------------- */
 .l-cta {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 22px;
-  padding: 88px 24px 96px;
+  gap: 28px;
+  padding: clamp(88px, 12vw, 150px) 28px;
   text-align: center;
 }
 
 .l-cta h2 {
   margin: 0;
   font-family: var(--f-display);
-  font-stretch: 125%;
-  font-weight: 900;
-  font-size: clamp(26px, 4vw, 40px);
-  letter-spacing: -0.02em;
+  font-stretch: 118%;
+  font-weight: 800;
+  font-size: clamp(30px, 4vw, 52px);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
   text-wrap: balance;
 }
 
@@ -318,7 +360,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 24px;
+  padding: 20px 28px;
   border-top: 1px solid var(--rule);
   color: var(--ink-3);
   font-size: 13px;
@@ -328,9 +370,57 @@ a {
   font-family: var(--f-display);
   font-stretch: 125%;
   font-weight: 800;
+  color: var(--ink-2);
 }
 
-@media (max-width: 640px) {
+.l-footer a {
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--rule);
+}
+
+/* --- Responsive ------------------------------------------------------ */
+@media (max-width: 860px) {
+  .scrub-sticky {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 54%) 1fr;
+  }
+
+  .scrub-visual {
+    order: -1;
+  }
+
+  .scrub-text {
+    align-items: flex-start;
+    padding: 26px 24px 64px;
+  }
+
+  .scrub-copy {
+    justify-content: flex-start;
+    gap: 14px;
+  }
+
+  .scrub-copy h1,
+  .scrub-copy h2 {
+    font-size: clamp(30px, 8vw, 44px);
+  }
+
+  .l-sub {
+    font-size: 15px;
+  }
+
+  .scrub-progress {
+    left: 24px;
+    bottom: 18px;
+  }
+
+  .sheet-rows li {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 22px 0;
+  }
+
   .l-nav > a:not(.l-btn) {
     display: none;
   }
@@ -345,16 +435,9 @@ a {
     position: relative;
   }
 
-  .scrub-hint {
-    display: none;
-  }
-
+  .scrub-progress,
   #copy-1,
   #copy-2 {
     display: none;
-  }
-
-  html {
-    scroll-behavior: auto;
   }
 }

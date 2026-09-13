@@ -12,7 +12,7 @@ const frameSrc = (i: number) => `${import.meta.env.BASE_URL}frames/f${String(i +
 const canvas = document.getElementById('frame-canvas') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
 const scrub = document.getElementById('scrub')!;
-const hint = document.getElementById('scrub-hint')!;
+const progressFill = document.getElementById('progress-fill')!;
 const copies = [document.getElementById('copy-1')!, document.getElementById('copy-2')!, document.getElementById('copy-3')!];
 // Which scroll range each block of copy owns.
 const COPY_RANGES: [number, number][] = [
@@ -81,7 +81,7 @@ function update() {
     const fadeOut = to > 1 ? 1 : Math.min(1, (to - progress) / fade);
     el.style.opacity = String(Math.max(0, Math.min(fadeIn, fadeOut)));
   });
-  hint.style.opacity = progress > 0.04 ? '0' : '1';
+  progressFill.style.transform = `scaleX(${progress})`;
 }
 
 // Direct update on scroll: it draws only when the frame index changes,
