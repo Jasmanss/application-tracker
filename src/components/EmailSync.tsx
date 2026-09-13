@@ -6,7 +6,7 @@ import { readPref, writePref } from '../storage';
 import type { Application } from '../types';
 import { Stamp } from './Stamp';
 
-const SETUP_GUIDE_URL = 'https://github.com/Jasmanss/application-tracker/blob/main/docs/gmail-setup.md';
+const SETUP_GUIDE_URL = 'https://github.com/Jasmanss/callback/blob/main/docs/gmail-setup.md';
 
 interface Props {
   apps: Application[];

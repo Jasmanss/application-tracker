@@ -1,6 +1,8 @@
-# Application Tracker
+# Callback
 
-A job application tracker that shows every application from wishlist to offer, and flags the ones that need a follow-up.
+The job application tracker that follows up. Callback shows every application from wishlist to offer, flags the ones waiting on a reply, and keeps the pipeline honest — rejection emails update statuses, and applications that go silent for 4 months are moved to Ghosted automatically.
+
+**Live at [jasmanss.github.io/callback](https://jasmanss.github.io/callback/).**
 
 Your data stays in your browser (localStorage). There's no account or server. Export a JSON backup to keep a copy or move to another device.
 
@@ -31,6 +33,7 @@ Your data stays in your browser (localStorage). There's no account or server. Ex
 
 - **Board view.** Drag cards between stages. Rejected, Ghosted and Withdrawn are grouped in one closed column.
 - **Table view.** Sort by any column and filter by status.
+- **Auto-ghost.** Applications in Applied or Screening with no activity for 4 months move to Ghosted automatically when you open the app — announced with an undo, never silently.
 - **Needs a follow-up list.** Shows applications whose follow-up date has arrived, and anything still in *Applied* after 14 days with no reminder set. One click sets a reminder for a week out or marks the application ghosted.
 - **Summary.** Applications sent, how many heard back, how many reached interviews, offers, and how many you sent this week, plus a bar showing the pipeline by stage.
 - **Search** across company, role, location, source, contact and notes.

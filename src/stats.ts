@@ -4,6 +4,18 @@ import { CLOSED_STATUSES, type Application, type Status } from './types';
 /** Days an application can sit in "Applied" before it's flagged. */
 export const STALE_AFTER_DAYS = 14;
 
+/** Days of total silence after which an application is auto-moved to Ghosted. */
+export const GHOST_AFTER_DAYS = 120;
+
+/** Open applications untouched for GHOST_AFTER_DAYS — no edits, no status change. */
+export function autoGhostable(apps: Application[], today: string): Application[] {
+  return apps.filter(
+    (a) =>
+      (a.status === 'applied' || a.status === 'screening') &&
+      daysBetween(a.updatedAt.slice(0, 10), today) >= GHOST_AFTER_DAYS,
+  );
+}
+
 function reached(app: Application, targets: Status[]): boolean {
   return targets.includes(app.status) || app.history.some((h) => targets.includes(h.status));
 }

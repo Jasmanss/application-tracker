@@ -7,10 +7,10 @@ import { EmptyState } from './components/EmptyState';
 import { Summary } from './components/Summary';
 import { TableView } from './components/TableView';
 import { addDays, formatDate, formatLongDate, plural, todayISO } from './dates';
+import { GHOST_AFTER_DAYS, autoGhostable, computeStats, needsAttention } from './stats';
 import type { Suggestion } from './email/parse';
 import { downloadFile, fromCSV, fromJSON, mergeApps, toCSV, toJSONBackup } from './io';
 import { sampleApps } from './sample';
-import { computeStats, needsAttention } from './stats';
 import { loadApps, newId, readPref, saveApps, writePref } from './storage';
 import { STATUS_LABEL, emptyDraft, impliesApplied, type Application, type Draft, type Status } from './types';
 
@@ -38,6 +38,22 @@ export default function App() {
 
   useEffect(() => setStorageOk(saveApps(apps)), [apps]);
   useEffect(() => writePref('view', view), [view]);
+
+  // Applications with 4 months of silence are moved to Ghosted on open (undoable).
+  useEffect(() => {
+    const stale = autoGhostable(apps, today);
+    if (stale.length === 0) return;
+    const before = apps;
+    const now = new Date().toISOString();
+    const ids = new Set(stale.map((a) => a.id));
+    setApps((prev) => prev.map((a) => (ids.has(a.id) ? withStatus(a, 'ghosted', now) : a)));
+    notify(
+      `Moved ${stale.length === 1 ? stale[0].company : plural(stale.length, 'application')} to Ghosted — no reply in ${Math.round(GHOST_AFTER_DAYS / 30)} months`,
+      () => setApps(before),
+    );
+    // Run once, on the list loaded at startup.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -242,7 +258,7 @@ export default function App() {
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">
-            <span className="wordmark">Application Tracker</span>
+            <span className="wordmark">Callback</span>
             <span className="brand-date">{formatLongDate(today)}</span>
           </div>
 

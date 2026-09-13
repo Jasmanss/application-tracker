@@ -1,4 +1,4 @@
-# Connect Gmail to the Application Tracker
+# Connect Gmail to Callback
 
 The tracker can scan your Gmail for job application emails — confirmations, interview invites, offers and rejections — and turn them into tracked applications. It reads your mail **in your browser only**, with **read-only** access. Nothing is uploaded to any server.
 
