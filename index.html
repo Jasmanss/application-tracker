@@ -11,10 +11,73 @@
       href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Public+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
-    <title>Callback</title>
+    <title>Callback — the job application tracker that follows up</title>
   </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+  <body class="landing">
+    <header class="l-header">
+      <a class="l-wordmark" href="./">Callback</a>
+      <nav class="l-nav">
+        <a href="https://github.com/Jasmanss/callback" target="_blank" rel="noreferrer">GitHub</a>
+        <a class="l-btn primary" href="./app.html">Open Callback</a>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Scroll-scrubbed keyframe animation: the handset lifts as you scroll. -->
+      <section class="scrub" id="scrub" aria-label="Callback introduction">
+        <div class="scrub-sticky">
+          <canvas class="scrub-canvas" id="frame-canvas" aria-hidden="true"></canvas>
+          <div class="scrub-copy" id="copy-1">
+            <p class="l-eyebrow">A job application tracker</p>
+            <h1>You applied.<br />Then: silence.</h1>
+            <p class="l-sub">Keep scrolling — Callback picks up.</p>
+          </div>
+          <div class="scrub-copy" id="copy-2" hidden>
+            <h2>Follow-ups on schedule.<br />Ghosts called out.</h2>
+          </div>
+          <div class="scrub-copy" id="copy-3" hidden>
+            <h2>Answer the callback.</h2>
+            <a class="l-btn primary big" href="./app.html">Start tracking — it's free</a>
+            <p class="l-fine">No account. Your data never leaves your browser.</p>
+          </div>
+          <div class="scrub-hint" id="scrub-hint" aria-hidden="true">Scroll ↓</div>
+        </div>
+      </section>
+
+      <section class="l-features" aria-label="What Callback does">
+        <article>
+          <span class="l-stamp" data-c="applied">Board</span>
+          <h3>Sent to signed</h3>
+          <p>Drag applications across Wishlist, Applied, Screening, Interviewing and Offer — or sort them in a table.</p>
+        </article>
+        <article>
+          <span class="l-stamp" data-c="screening">Email</span>
+          <h3>Reads the mail for you</h3>
+          <p>Scan Gmail or paste any application email. Confirmations become cards; rejections update their own status.</p>
+        </article>
+        <article>
+          <span class="l-stamp" data-c="ghosted">Auto-ghost</span>
+          <h3>Silence gets filed</h3>
+          <p>Two weeks quiet earns a follow-up nudge. Four months quiet moves the application to Ghosted — undoable, never silent.</p>
+        </article>
+        <article>
+          <span class="l-stamp" data-c="offer">Private</span>
+          <h3>Yours alone</h3>
+          <p>No account, no server. Everything lives in your browser, with CSV and JSON export whenever you want it.</p>
+        </article>
+      </section>
+
+      <section class="l-cta">
+        <h2>Every application, from sent to signed.</h2>
+        <a class="l-btn primary big" href="./app.html">Open Callback</a>
+      </section>
+    </main>
+
+    <footer class="l-footer">
+      <span>Callback</span>
+      <a href="https://github.com/Jasmanss/callback" target="_blank" rel="noreferrer">Source on GitHub</a>
+    </footer>
+
+    <script type="module" src="/src/landing.ts"></script>
   </body>
 </html>
