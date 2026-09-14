@@ -276,6 +276,21 @@ hr {
   color: var(--ink);
 }
 
+.sync-btn:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+
+.sync-btn svg.is-spinning {
+  animation: sync-spin 0.9s linear infinite;
+}
+
+@keyframes sync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .segmented {
   display: inline-flex;
   padding: 2px;

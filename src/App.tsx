@@ -31,6 +31,7 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Editing>(null);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [dailyTarget, setDailyTarget] = useState(() => {
     const saved = readPref('dailyTarget');
     if (saved === null) return 10;
@@ -255,6 +256,38 @@ export default function App() {
     if (parts.length > 0) notify(`From email: ${parts.join(', ')}`, () => setApps(before));
   }
 
+  async function syncNow() {
+    if (!readPref('gmailClientId')) {
+      // Not connected yet: the email dialog is the way in.
+      setEmailOpen(true);
+      return;
+    }
+    setSyncing(true);
+    try {
+      const before = appsRef.current;
+      const result = await runAutoSync(before);
+      if (result.needsSignIn) {
+        notify('Google needs a quick sign-in — run the scan from here once.');
+        setEmailOpen(true);
+        return;
+      }
+      if (result.added > 0 || result.updated > 0) {
+        setApps(result.apps);
+        const parts = [
+          result.added > 0 && `added ${plural(result.added, 'application')}`,
+          result.updated > 0 && `updated ${result.updated}`,
+        ].filter(Boolean);
+        notify(`Gmail sync: ${parts.join(', ')}`, () => setApps(before));
+      } else {
+        notify('Gmail sync: nothing new since last check');
+      }
+    } catch {
+      notify('Gmail sync failed — try the scan in Data → Add from email to see why.');
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   function exportAs(kind: 'csv' | 'json') {
     closeMenu();
     if (kind === 'csv') {
@@ -304,6 +337,31 @@ export default function App() {
               </div>
             </>
           )}
+
+          <button
+            type="button"
+            className="btn sync-btn"
+            onClick={syncNow}
+            disabled={syncing}
+            title="Check Gmail for new application emails now"
+          >
+            <svg
+              className={syncing ? 'is-spinning' : undefined}
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+              <polyline points="21 3 21 9 15 9" />
+            </svg>
+            {syncing ? 'Syncing…' : 'Sync'}
+          </button>
 
           <details className="menu" ref={menu}>
             <summary className="btn">Data</summary>
