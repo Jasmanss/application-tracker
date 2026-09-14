@@ -49,6 +49,6 @@ Because there is no server, you bring your own free Google "Client ID". You crea
 
 ## What the scan can and can't do
 
-- It runs when you click **Scan Gmail** — it does not watch your inbox in the background.
+- After the first sign-in, Callback syncs by itself whenever the app is open (on load and every 15 minutes), applying new applications and status changes with an undo. It cannot check mail while the app is closed — there is no server.
 - It searches roughly the past year for application-related emails and reads only their sender, subject, date and preview snippet.
 - Parsing is best-effort: unusual emails may be missed or mislabeled. Everything is shown for review before it touches your tracker, and importing is undoable.

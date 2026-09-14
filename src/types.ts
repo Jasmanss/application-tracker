@@ -110,6 +110,18 @@ export function impliesApplied(status: Status): boolean {
   return status !== 'wishlist' && status !== 'withdrawn';
 }
 
+/** Moves an application to a new status, recording history and dates. */
+export function withStatus(app: Application, status: Status, at: string, today: string): Application {
+  if (app.status === status) return app;
+  return {
+    ...app,
+    status,
+    history: [...app.history, { status, at }],
+    dateApplied: app.dateApplied || (impliesApplied(status) ? today : ''),
+    updatedAt: at,
+  };
+}
+
 /** Returns a clickable http(s) URL, or null for anything else (e.g. javascript: links). */
 export function safeUrl(value: string): string | null {
   const raw = value.trim();

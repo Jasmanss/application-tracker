@@ -25,6 +25,7 @@ export function EmailSync({ apps, onImport, onClose }: Props) {
     const saved = readPref('gmailScanSince');
     return saved && isISODate(saved) ? saved : addDays(todayISO(), -90);
   });
+  const [autoSync, setAutoSync] = useState(() => readPref('gmailAutoSync') !== 'off');
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
@@ -209,6 +210,23 @@ export function EmailSync({ apps, onImport, onClose }: Props) {
                     Change Client ID
                   </button>
                 </div>
+                <label className="auto-toggle">
+                  <input
+                    type="checkbox"
+                    checked={autoSync}
+                    onChange={(e) => {
+                      setAutoSync(e.target.checked);
+                      writePref('gmailAutoSync', e.target.checked ? 'on' : 'off');
+                    }}
+                  />
+                  <span>
+                    Sync by itself while Callback is open
+                    <small>
+                      Runs when you open the app and every 15 minutes after — new applications and status changes are
+                      applied automatically, with an undo.
+                    </small>
+                  </span>
+                </label>
               </>
             )}
           </>

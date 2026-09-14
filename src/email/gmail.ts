@@ -1,3 +1,4 @@
+import { readPref, writePref } from '../storage';
 import type { EmailInput } from './parse';
 
 /**
@@ -19,7 +20,7 @@ interface TokenResponse {
 }
 
 interface TokenClient {
-  requestAccessToken(): void;
+  requestAccessToken(override?: { prompt?: string }): void;
 }
 
 declare global {
@@ -59,7 +60,32 @@ function loadGis(): Promise<void> {
 
 let cached: { clientId: string; token: string; expiresAt: number } | null = null;
 
-async function getToken(clientId: string): Promise<string> {
+function readStoredToken(clientId: string): void {
+  if (cached) return;
+  try {
+    const raw = readPref('gmailToken');
+    if (!raw) return;
+    const stored = JSON.parse(raw) as { clientId?: string; token?: string; expiresAt?: number };
+    if (stored.clientId === clientId && stored.token && typeof stored.expiresAt === 'number') {
+      cached = { clientId, token: stored.token, expiresAt: stored.expiresAt };
+    }
+  } catch {
+    // Ignore a corrupt stored token; we'll just ask Google again.
+  }
+}
+
+function clearToken(): void {
+  cached = null;
+  writePref('gmailToken', '');
+}
+
+/**
+ * Gets a Gmail access token. `interactive: false` only succeeds when Google
+ * can re-issue silently (previously granted, still signed in); it never opens
+ * a sign-in window.
+ */
+async function getToken(clientId: string, interactive: boolean): Promise<string> {
+  readStoredToken(clientId);
   if (cached && cached.clientId === clientId && Date.now() < cached.expiresAt) return cached.token;
   await loadGis();
   return new Promise((resolve, reject) => {
@@ -74,6 +100,7 @@ async function getToken(clientId: string): Promise<string> {
             // Refresh a minute before Google expires it.
             expiresAt: Date.now() + ((response.expires_in ?? 3600) - 60) * 1000,
           };
+          writePref('gmailToken', JSON.stringify(cached));
           resolve(response.access_token);
         } else {
           reject(new Error(response.error_description || response.error || 'Google didn’t return access.'));
@@ -88,14 +115,14 @@ async function getToken(clientId: string): Promise<string> {
           ),
         ),
     });
-    client.requestAccessToken();
+    client.requestAccessToken(interactive ? undefined : { prompt: 'none' });
   });
 }
 
 async function gmailGet(token: string, path: string): Promise<Record<string, unknown>> {
   const response = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${token}` } });
   if (!response.ok) {
-    cached = response.status === 401 ? null : cached;
+    if (response.status === 401) clearToken();
     const body = await response.text();
     if (response.status === 401) throw new Error('Google sign-in expired. Run the scan again to sign back in.');
     if (body.includes('accessNotConfigured') || body.includes('SERVICE_DISABLED'))
@@ -134,9 +161,10 @@ export async function fetchApplicationEmails(
   clientId: string,
   sinceISO: string,
   onProgress: (progress: ScanProgress) => void,
+  interactive = true,
 ): Promise<EmailInput[]> {
   onProgress({ step: 'Waiting for Google sign-in…' });
-  const token = await getToken(clientId);
+  const token = await getToken(clientId, interactive);
 
   // Gmail's `after:` takes yyyy/mm/dd and is inclusive of that day.
   const after = ` after:${sinceISO.replaceAll('-', '/')}`;

@@ -8,11 +8,13 @@ import { Summary } from './components/Summary';
 import { TableView } from './components/TableView';
 import { addDays, formatDate, formatLongDate, plural, todayISO } from './dates';
 import { GHOST_AFTER_DAYS, autoGhostable, computeStats, needsAttention } from './stats';
+import { applySuggestions } from './email/apply';
+import { autoSyncEnabled, markSeen, runAutoSync } from './email/autosync';
 import type { Suggestion } from './email/parse';
 import { downloadFile, fromCSV, fromJSON, mergeApps, toCSV, toJSONBackup } from './io';
 import { sampleApps } from './sample';
 import { loadApps, newId, readPref, saveApps, writePref } from './storage';
-import { STATUS_LABEL, emptyDraft, impliesApplied, type Application, type Draft, type Status } from './types';
+import { STATUS_LABEL, impliesApplied, withStatus, type Application, type Draft, type Status } from './types';
 
 type View = 'board' | 'table';
 type Editing = { mode: 'new'; status: Status } | { mode: 'edit'; id: string } | null;
@@ -39,6 +41,53 @@ export default function App() {
   useEffect(() => setStorageOk(saveApps(apps)), [apps]);
   useEffect(() => writePref('view', view), [view]);
 
+  const appsRef = useRef(apps);
+  useEffect(() => {
+    appsRef.current = apps;
+  }, [apps]);
+
+  // Background Gmail sync: on open and every 15 minutes, silently — new
+  // applications and status changes land on their own, with an undo.
+  useEffect(() => {
+    if (!autoSyncEnabled()) return;
+    let stopped = false;
+    let warned = false;
+
+    async function sync() {
+      try {
+        const before = appsRef.current;
+        const result = await runAutoSync(before);
+        if (stopped) return;
+        if (result.needsSignIn) {
+          if (!warned) {
+            warned = true;
+            notify('Gmail sync is paused — open Data → Add from email and scan once to sign back in.');
+          }
+          return;
+        }
+        if (result.added > 0 || result.updated > 0) {
+          setApps(result.apps);
+          const parts = [
+            result.added > 0 && `added ${plural(result.added, 'application')}`,
+            result.updated > 0 && `updated ${result.updated}`,
+          ].filter(Boolean);
+          notify(`Gmail sync: ${parts.join(', ')}`, () => setApps(before));
+        }
+      } catch {
+        // Background work stays quiet; the manual scan surfaces errors.
+      }
+    }
+
+    const kickoff = window.setTimeout(sync, 1500);
+    const interval = window.setInterval(sync, 15 * 60 * 1000);
+    return () => {
+      stopped = true;
+      window.clearTimeout(kickoff);
+      window.clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Applications with 4 months of silence are moved to Ghosted on open (undoable).
   useEffect(() => {
     const stale = autoGhostable(apps, today);
@@ -46,7 +95,7 @@ export default function App() {
     const before = apps;
     const now = new Date().toISOString();
     const ids = new Set(stale.map((a) => a.id));
-    setApps((prev) => prev.map((a) => (ids.has(a.id) ? withStatus(a, 'ghosted', now) : a)));
+    setApps((prev) => prev.map((a) => (ids.has(a.id) ? withStatus(a, 'ghosted', now, today) : a)));
     notify(
       `Moved ${stale.length === 1 ? stale[0].company : plural(stale.length, 'application')} to Ghosted — no reply in ${Math.round(GHOST_AFTER_DAYS / 30)} months`,
       () => setApps(before),
@@ -101,17 +150,6 @@ export default function App() {
   const notify = (message: string, undo?: () => void) => setToast({ id: Date.now(), message, undo });
   const closeMenu = () => menu.current && (menu.current.open = false);
 
-  function withStatus(app: Application, status: Status, now: string): Application {
-    if (app.status === status) return app;
-    return {
-      ...app,
-      status,
-      history: [...app.history, { status, at: now }],
-      dateApplied: app.dateApplied || (impliesApplied(status) ? today : ''),
-      updatedAt: now,
-    };
-  }
-
   function replace(next: Application) {
     setApps((prev) => prev.map((a) => (a.id === next.id ? next : a)));
   }
@@ -119,7 +157,7 @@ export default function App() {
   function saveDraft(draft: Draft) {
     const now = new Date().toISOString();
     if (editingApp) {
-      replace(withStatus({ ...editingApp, ...draft, status: editingApp.status, updatedAt: now }, draft.status, now));
+      replace(withStatus({ ...editingApp, ...draft, status: editingApp.status, updatedAt: now }, draft.status, now, today));
       notify(`Saved ${draft.company}`);
     } else {
       const app: Application = {
@@ -139,7 +177,7 @@ export default function App() {
   function moveApp(id: string, status: Status) {
     const before = apps.find((a) => a.id === id);
     if (!before || before.status === status) return;
-    replace(withStatus(before, status, new Date().toISOString()));
+    replace(withStatus(before, status, new Date().toISOString(), today));
     notify(`Moved ${before.company} to ${STATUS_LABEL[status]}`, () => replace(before));
   }
 
@@ -200,35 +238,9 @@ export default function App() {
 
   function importFromEmail(suggestions: Suggestion[]) {
     const before = apps;
-    const now = new Date().toISOString();
-    let next = [...apps];
-    let added = 0;
-    let updated = 0;
-
-    for (const s of suggestions) {
-      if (s.action === 'update' && s.existingId) {
-        next = next.map((a) => (a.id === s.existingId ? withStatus(a, s.status, now) : a));
-        updated++;
-      } else if (s.action === 'new') {
-        added++;
-        next = [
-          {
-            ...emptyDraft(s.status),
-            company: s.company,
-            role: s.role || 'Untitled role',
-            source: s.source,
-            notes: s.evidence ? `From email: “${s.evidence}”` : '',
-            dateApplied: impliesApplied(s.status) ? s.date : '',
-            id: newId(),
-            history: [{ status: s.status, at: new Date(`${s.date}T12:00:00`).toISOString() }],
-            createdAt: now,
-            updatedAt: now,
-          },
-          ...next,
-        ];
-      }
-    }
-
+    const { apps: next, added, updated } = applySuggestions(apps, suggestions, today);
+    // Gmail message ids in the keys: never re-propose these emails.
+    markSeen(suggestions.map((s) => s.key).filter((key) => !key.includes('|')));
     setApps(next);
     const parts = [added > 0 && `added ${plural(added, 'application')}`, updated > 0 && `updated ${updated}`].filter(
       Boolean,
