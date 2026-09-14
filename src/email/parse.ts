@@ -94,14 +94,27 @@ function cleanCompany(raw: string): string {
   // "Halcyon Health on Indeed" → "Halcyon Health".
   c = c.replace(/\s+(?:on|via|through)\s+(?:linkedin|indeed|wellfound|angellist|ziprecruiter|glassdoor|monster|dice)\b.*$/i, '');
   c = c.replace(/^(?:the team at|the|team)\s+/i, '');
+  // "Stripe for the Data Engineer position" → "Stripe".
+  c = c.split(/\s+for\s+(?:the|an?)\s+/i)[0];
   c = c.replace(/\s+(?:careers?|recruiting|recruitment|talent(?: acquisition)?|hiring(?: team)?|hr|people(?: team| ops)?|jobs?|notifications?|team|inc\.?|llc\.?|ltd\.?)$/i, '');
   c = c.replace(/[|:,.!\-–—\s]+$/g, '').trim();
-  if (c.length < 2 || c.length > 60 || c.includes('@') || /^(you|your|we|us|our|hi|hello)$/i.test(c)) return '';
+  if (
+    c.length < 2 ||
+    c.length > 60 ||
+    c.includes('@') ||
+    /^(you|your|we|us|our|hi|hello|the|an?|team|best|regards|thanks|sincerely|warm)$/i.test(c) ||
+    // A role that leaked into a company slot ("Data Analyst position").
+    /\b(position|role|opening|opportunity|vacancy|requisition)$/i.test(c)
+  ) {
+    return '';
+  }
   return c;
 }
 
 function cleanRole(raw: string): string {
   let r = raw.replace(/["'“”*]/g, '').replace(/\s+/g, ' ').trim();
+  // "Stripe for the Data Engineer" → "Data Engineer".
+  r = r.split(/\s+for\s+(?:the|an?)\s+/i).pop() ?? r;
   r = r.replace(/^(?:the|a|an|our|open)\s+/i, '');
   r = r.replace(/\s*\(?(?:remote|hybrid|on-?site|f\/?m\/?d|all genders)\)?$/i, '');
   r = r.replace(/[|:,.!\-–—\s]+$/g, '').trim();
@@ -137,6 +150,10 @@ const COMPANY_PATTERNS: RegExp[] = [
   /your (?:interest in|candidacy (?:at|with)) ([^,.:;\n!?]+)/i,
   /joining (?:the team at )?([^,.:;\n!?]+)/i,
   /(?:the|from the) ([^,.:;\n!?]+?) (?:talent|recruiting|hiring) team/i,
+  // Sign-offs at the end of the email: "Lyft Talent Acquisition",
+  // "Talent Acquisition, Lyft", "The Acme Recruiting Team".
+  /([A-Za-z][A-Za-z0-9&.\-' ]{1,40}?) (?:talent acquisition|talent team|recruiting team|recruitment team|hiring team|people team|careers team|university recruiting|early careers)\b/i,
+  /(?:talent acquisition|recruiting|recruitment)(?:\s+team)?(?:,|\s+at)\s+([A-Za-z][^,.:;\n!?©|]{1,40})/i,
   // Footer signals, weakest last: "Early talent programs at Lyft",
   // "Careers at Stripe", "Life at Notion", "© 2026 Lyft, Inc."
   /(?:early talent|university|campus|talent|recruiting|people|careers?|jobs?|hiring|programs?|opportunities|working|life) (?:at|@) (?!this\b|that\b|us\b|you\b|it\b)([^,.:;\n!?|•·©(]+)/i,

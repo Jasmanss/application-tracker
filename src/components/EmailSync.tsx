@@ -274,6 +274,7 @@ export function EmailSync({ apps, onImport, onClose }: Props) {
                         <input type="checkbox" checked={s.checked} onChange={() => toggle(s.key)} />
                         <span className="sug-main">
                           <b>{s.company}</b>
+                          {s.role && <span className="sug-role"> — {s.role}</span>}
                         </span>
                         <span className={`sug-action is-${s.action}`}>{s.action === 'new' ? 'New' : 'Update'}</span>
                         <Stamp status={s.status} size="sm" />
