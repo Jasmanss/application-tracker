@@ -277,7 +277,9 @@ export function EmailSync({ apps, onImport, onClose }: Props) {
                             <b>{s.company}</b>
                             {s.role && <span className="sug-role"> — {s.role}</span>}
                           </span>
-                          <span className="sug-evidence">“{s.evidence}”</span>
+                          <span className="sug-evidence" title={s.evidence}>
+                            {s.gist}
+                          </span>
                         </span>
                         <span className={`sug-action is-${s.action}`}>{s.action === 'new' ? 'New' : 'Update'}</span>
                         <Stamp status={s.status} size="sm" />

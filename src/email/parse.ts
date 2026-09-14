@@ -18,8 +18,10 @@ export interface ParsedEmail {
   /** yyyy-mm-dd of the email */
   date: string;
   source: string;
-  /** The subject (or body start) shown to the user as proof. */
+  /** The subject (or body start), kept as proof. */
   evidence: string;
+  /** Three-or-four-word gist of what the email says. */
+  gist: string;
 }
 
 /** A parsed email checked against the applications already tracked. */
@@ -210,6 +212,21 @@ export function parseEmail(email: EmailInput): ParsedEmail | null {
   const role = firstMatch(ROLE_PATTERNS, [subject, body], cleanRole, (r) => norm(r) !== norm(company));
   const evidence = subject || `${body.slice(0, 90)}…`;
 
+  const gist =
+    status === 'offer'
+      ? 'Offer received'
+      : status === 'rejected'
+        ? 'Not moving forward'
+        : status === 'screening'
+          ? /(assessment|take-?home|coding challenge|online test)/i.test(all)
+            ? 'Assessment requested'
+            : 'Screening call invite'
+          : status === 'interviewing'
+            ? /(schedule|availability|calendar)/i.test(all)
+              ? 'Wants to schedule'
+              : 'Interview invite'
+            : 'Application received';
+
   return {
     company,
     role,
@@ -219,6 +236,7 @@ export function parseEmail(email: EmailInput): ParsedEmail | null {
       ? senderPlatform
       : 'Email',
     evidence,
+    gist,
   };
 }
 
