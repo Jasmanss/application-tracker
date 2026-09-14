@@ -223,6 +223,15 @@ export function parseEmail(email: EmailInput): ParsedEmail | null {
 ------------------------------------------------------------------- */
 const RANK: Partial<Record<Status, number>> = { wishlist: 0, applied: 1, screening: 2, interviewing: 3, offer: 4 };
 
+/** Statuses in an email that count as "hearing from them again". */
+const REVIVING: Status[] = ['screening', 'interviewing', 'offer', 'rejected'];
+
+/** The day an application was moved to Ghosted (falls back to last touch). */
+function ghostedSince(app: Application): string {
+  const entry = [...app.history].reverse().find((h) => h.status === 'ghosted');
+  return (entry?.at ?? app.updatedAt).slice(0, 10);
+}
+
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 function rolesMatch(a: string, b: string): boolean {
@@ -263,10 +272,21 @@ export function reconcile(parsed: (ParsedEmail & { id?: string })[], apps: Appli
       .filter((a) => norm(a.company) === norm(best.company) && rolesMatch(a.role, role))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 
+    const newest = group.map((g) => g.date).sort().at(-1) ?? best.date;
+
     let action: Suggestion['action'];
     let existingId: string | undefined;
     if (!existing) {
       action = 'new';
+    } else if (
+      // Back from the dead: a ghosted application whose email arrived after
+      // it was ghosted comes back at whatever stage the email says.
+      existing.status === 'ghosted' &&
+      REVIVING.includes(best.status) &&
+      newest >= ghostedSince(existing)
+    ) {
+      action = 'update';
+      existingId = existing.id;
     } else if (
       CLOSED_STATUSES.includes(existing.status) ||
       (best.status !== 'rejected' && (RANK[best.status] ?? 0) <= (RANK[existing.status] ?? 0))

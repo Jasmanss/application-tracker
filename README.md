@@ -33,7 +33,7 @@ Your data stays in your browser (localStorage). There's no account or server. Ex
 
 - **Board view.** Drag cards between stages. Rejected, Ghosted and Withdrawn are grouped in one closed column.
 - **Table view.** Sort by any column and filter by status.
-- **Auto-ghost.** Applications in Applied or Screening with no activity for 4 months move to Ghosted automatically when you open the app — announced with an undo, never silently.
+- **Auto-ghost, and back again.** Applications in Applied or Screening with no activity for 4 months move to Ghosted automatically when you open the app — announced with an undo, never silently. And if a ghosted company emails again (interview, offer, even a late rejection), Gmail sync moves the application back to the right stage on its own.
 - **Needs a follow-up list.** Shows applications whose follow-up date has arrived, and anything still in *Applied* after 14 days with no reminder set. One click sets a reminder for a week out or marks the application ghosted.
 - **Summary.** Applications sent, how many heard back, how many reached interviews, offers, and how many you sent this week, plus a bar showing the pipeline by stage.
 - **Search** across company, role, location, source, contact and notes.
