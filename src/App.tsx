@@ -30,7 +30,7 @@ export default function App() {
   const [view, setView] = useState<View>(() => (readPref('view') === 'table' ? 'table' : 'board'));
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Editing>(null);
-  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState<false | 'gmail' | 'paste'>(false);
   const [syncing, setSyncing] = useState(false);
   const [dailyTarget, setDailyTarget] = useState(() => {
     const saved = readPref('dailyTarget');
@@ -259,7 +259,7 @@ export default function App() {
   async function syncNow() {
     if (!readPref('gmailClientId')) {
       // Not connected yet: the email dialog is the way in.
-      setEmailOpen(true);
+      setEmailOpen('gmail');
       return;
     }
     setSyncing(true);
@@ -268,7 +268,7 @@ export default function App() {
       const result = await runAutoSync(before);
       if (result.needsSignIn) {
         notify('Google needs a quick sign-in — run the scan from here once.');
-        setEmailOpen(true);
+        setEmailOpen('gmail');
         return;
       }
       if (result.added > 0 || result.updated > 0) {
@@ -370,7 +370,7 @@ export default function App() {
                 type="button"
                 onClick={() => {
                   closeMenu();
-                  setEmailOpen(true);
+                  setEmailOpen('gmail');
                 }}
               >
                 Add from email
@@ -413,7 +413,7 @@ export default function App() {
         {apps.length === 0 ? (
           <EmptyState
             onAdd={() => openNew()}
-            onEmail={() => setEmailOpen(true)}
+            onEmail={() => setEmailOpen('gmail')}
             onImport={openImport}
             onSample={loadSample}
           />
@@ -450,7 +450,14 @@ export default function App() {
         )}
       </main>
 
-      {emailOpen && <EmailSync apps={apps} onImport={importFromEmail} onClose={() => setEmailOpen(false)} />}
+      {emailOpen && (
+        <EmailSync
+          apps={apps}
+          initialTab={emailOpen}
+          onImport={importFromEmail}
+          onClose={() => setEmailOpen(false)}
+        />
+      )}
 
       {editing && (editing.mode === 'new' || editingApp) && (
         <Drawer
@@ -461,6 +468,7 @@ export default function App() {
           onSave={saveDraft}
           onClose={() => setEditing(null)}
           onDelete={deleteApp}
+          onPasteEmail={() => setEmailOpen('paste')}
         />
       )}
 

@@ -24,11 +24,13 @@ interface Props {
   onSave: (draft: Draft) => void;
   onClose: () => void;
   onDelete: (id: string) => void;
+  /** Switches to the paste-an-email flow (new applications only). */
+  onPasteEmail?: () => void;
 }
 
 const SOURCES = ['LinkedIn', 'Indeed', 'Company site', 'Referral', 'Recruiter reached out', 'Job board', 'Career fair'];
 
-export function Drawer({ app, initialStatus, today, onSave, onClose, onDelete }: Props) {
+export function Drawer({ app, initialStatus, today, onSave, onClose, onDelete, onPasteEmail }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const pressedBackdrop = useRef(false);
   const [initial] = useState<Draft>(() => (app ? toDraft(app) : emptyDraft(initialStatus)));
@@ -98,6 +100,24 @@ export function Drawer({ app, initialStatus, today, onSave, onClose, onDelete }:
         </header>
 
         <div className="drawer-body">
+          {!app && onPasteEmail && (
+            <p className="drawer-alt">
+              Got a confirmation email the sync missed?{' '}
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => {
+                  if (confirmDiscard()) {
+                    dialog.current?.close();
+                    onPasteEmail();
+                  }
+                }}
+              >
+                Paste the email
+              </button>{' '}
+              and Callback fills this in.
+            </p>
+          )}
           <fieldset>
             <legend>The job</legend>
             <div className="grid-2">

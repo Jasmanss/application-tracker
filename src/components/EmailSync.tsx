@@ -10,15 +10,16 @@ const SETUP_GUIDE_URL = 'https://github.com/Jasmanss/callback/blob/main/docs/gma
 
 interface Props {
   apps: Application[];
+  initialTab?: 'gmail' | 'paste';
   onImport: (suggestions: Suggestion[]) => void;
   onClose: () => void;
 }
 
 type Tab = 'gmail' | 'paste';
 
-export function EmailSync({ apps, onImport, onClose }: Props) {
+export function EmailSync({ apps, initialTab = 'gmail', onImport, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [tab, setTab] = useState<Tab>('gmail');
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [clientId, setClientId] = useState(() => readPref('gmailClientId') ?? '');
   const [idInput, setIdInput] = useState(clientId);
   const [since, setSince] = useState(() => {
