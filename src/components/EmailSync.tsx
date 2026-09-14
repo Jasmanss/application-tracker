@@ -270,20 +270,14 @@ export function EmailSync({ apps, onImport, onClose }: Props) {
                 <ul className="sug-list">
                   {actionable.map((s) => (
                     <li key={s.key}>
-                      <label className="sug">
+                      <label className="sug" title={s.evidence}>
                         <input type="checkbox" checked={s.checked} onChange={() => toggle(s.key)} />
                         <span className="sug-main">
-                          <span>
-                            <b>{s.company}</b>
-                            {s.role && <span className="sug-role"> — {s.role}</span>}
-                          </span>
-                          <span className="sug-evidence" title={s.evidence}>
-                            {s.gist}
-                          </span>
+                          <b>{s.company}</b>
                         </span>
                         <span className={`sug-action is-${s.action}`}>{s.action === 'new' ? 'New' : 'Update'}</span>
                         <Stamp status={s.status} size="sm" />
-                        <span className="mono">{formatDate(s.date)}</span>
+                        <span className="mono">Applied {formatDate(s.date)}</span>
                       </label>
                     </li>
                   ))}
