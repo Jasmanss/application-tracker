@@ -2,8 +2,8 @@ import { addDays, isISODate, todayISO } from '../dates';
 import { readPref, writePref } from '../storage';
 import type { Application } from '../types';
 import { applySuggestions, type ApplyResult } from './apply';
-import { fetchApplicationEmails } from './gmail';
-import { parseEmail, reconcile, type Suggestion } from './parse';
+import { fetchApplicationEmails, parseCandidates } from './gmail';
+import { reconcile, type Suggestion } from './parse';
 
 const SEEN_CAP = 3000;
 
@@ -73,10 +73,7 @@ async function syncOnce(apps: Application[]): Promise<AutoSyncOutcome> {
 
   const seen = readSeen();
   const fresh = emails.filter((e) => e.id && !seen.has(e.id));
-  const parsed = fresh.flatMap((email) => {
-    const result = parseEmail(email);
-    return result && result.date >= since ? [{ ...result, id: email.id }] : [];
-  });
+  const parsed = await parseCandidates(clientId, fresh, since);
   const suggestions: Suggestion[] = reconcile(parsed, apps).filter((s) => s.action !== 'skip');
 
   const result = applySuggestions(apps, suggestions, today);

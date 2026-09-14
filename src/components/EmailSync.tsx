@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { addDays, formatDate, isISODate, todayISO } from '../dates';
-import { fetchApplicationEmails } from '../email/gmail';
+import { fetchApplicationEmails, parseCandidates } from '../email/gmail';
 import { parseEmail, parsePastedEmail, reconcile, type Suggestion } from '../email/parse';
 import { readPref, writePref } from '../storage';
 import type { Application } from '../types';
@@ -56,11 +56,7 @@ export function EmailSync({ apps, onImport, onClose }: Props) {
     setSuggestions(null);
     try {
       const emails = await fetchApplicationEmails(clientId, since, (p) => setProgress(p.step));
-      const parsed = emails.flatMap((email) => {
-        const result = parseEmail(email);
-        // Belt and braces: drop anything dated before the cutoff.
-        return result && result.date >= since ? [{ ...result, id: email.id }] : [];
-      });
+      const parsed = await parseCandidates(clientId, emails, since, (p) => setProgress(p.step));
       setSuggestions(reconcile(parsed, apps));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'The scan failed. Try again in a minute.');

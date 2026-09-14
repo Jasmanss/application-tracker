@@ -1,5 +1,5 @@
 import { readPref, writePref } from '../storage';
-import type { EmailInput } from './parse';
+import { parseEmail, type EmailInput, type ParsedEmail } from './parse';
 
 /**
  * Read-only Gmail access, entirely in the browser.
@@ -149,6 +149,43 @@ function decodeEntities(text: string): string {
   return doc.documentElement.textContent ?? text;
 }
 
+function htmlToText(html: string): string {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('style, script, head').forEach((el) => el.remove());
+  return doc.body?.textContent ?? '';
+}
+
+function b64urlToText(data: string): string {
+  try {
+    const bin = atob(data.replace(/-/g, '+').replace(/_/g, '/'));
+    return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+  } catch {
+    return '';
+  }
+}
+
+interface MessagePart {
+  mimeType?: string;
+  body?: { data?: string };
+  parts?: MessagePart[];
+}
+
+/** Walks a MIME tree and returns the message text, plain part preferred. */
+function extractBodyText(payload: MessagePart | undefined): string {
+  let plain = '';
+  let html = '';
+  const walk = (part: MessagePart | undefined) => {
+    if (!part) return;
+    if (part.body?.data) {
+      if (part.mimeType?.startsWith('text/plain') && !plain) plain = b64urlToText(part.body.data);
+      else if (part.mimeType?.startsWith('text/html') && !html) html = b64urlToText(part.body.data);
+    }
+    part.parts?.forEach(walk);
+  };
+  walk(payload);
+  return (plain || htmlToText(html)).slice(0, 30000);
+}
+
 export interface ScanProgress {
   step: string;
 }
@@ -201,4 +238,50 @@ export async function fetchApplicationEmails(
     emails.push(...chunk);
   }
   return emails;
+}
+
+/**
+ * Parses candidate emails into applications. Emails the snippet can't
+ * identify get one more chance: the full message body is fetched (footers
+ * often carry the only company mention, e.g. "Early talent programs at
+ * Lyft"), and the parse is retried on the complete text.
+ */
+export async function parseCandidates(
+  clientId: string,
+  emails: EmailInput[],
+  sinceISO: string,
+  onProgress: (progress: ScanProgress) => void = () => undefined,
+): Promise<(ParsedEmail & { id?: string })[]> {
+  const parsed: (ParsedEmail & { id?: string })[] = [];
+  const unresolved: EmailInput[] = [];
+
+  for (const email of emails) {
+    const result = parseEmail(email);
+    if (result) {
+      if (result.date >= sinceISO) parsed.push({ ...result, id: email.id });
+    } else if (email.id) {
+      unresolved.push(email);
+    }
+  }
+
+  if (unresolved.length > 0) {
+    const token = await getToken(clientId, false);
+    for (let i = 0; i < unresolved.length; i += 5) {
+      onProgress({ step: `Reading ${Math.min(i + 5, unresolved.length)} of ${unresolved.length} in full…` });
+      const chunk = await Promise.all(
+        unresolved.slice(i, i + 5).map(async (email): Promise<(ParsedEmail & { id?: string }) | null> => {
+          try {
+            const message = await gmailGet(token, `/messages/${email.id}?format=full`);
+            const body = extractBodyText(message.payload as MessagePart | undefined);
+            const result = body ? parseEmail({ ...email, body: `${email.body}\n${body}` }) : null;
+            return result && result.date >= sinceISO ? { ...result, id: email.id } : null;
+          } catch {
+            return null; // one unreadable email never sinks the scan
+          }
+        }),
+      );
+      parsed.push(...chunk.filter((r): r is ParsedEmail & { id?: string } => r !== null));
+    }
+  }
+  return parsed;
 }

@@ -135,6 +135,10 @@ const COMPANY_PATTERNS: RegExp[] = [
   /your (?:interest in|candidacy (?:at|with)) ([^,.:;\n!?]+)/i,
   /joining (?:the team at )?([^,.:;\n!?]+)/i,
   /(?:the|from the) ([^,.:;\n!?]+?) (?:talent|recruiting|hiring) team/i,
+  // Footer signals, weakest last: "Early talent programs at Lyft",
+  // "Careers at Stripe", "Life at Notion", "© 2026 Lyft, Inc."
+  /(?:early talent|university|campus|talent|recruiting|people|careers?|jobs?|hiring|programs?|opportunities|working|life) (?:at|@) (?!this\b|that\b|us\b|you\b|it\b)([^,.:;\n!?|•·©(]+)/i,
+  /(?:©|\(c\)|copyright)\s*\d{4}[-–\d]*,?\s+(?!all\b)([^,.\n;|©]{2,40})/i,
 ];
 
 /** Ordered patterns whose first capture group is the role. */
@@ -172,7 +176,7 @@ function firstMatch(
  */
 export function parseEmail(email: EmailInput): ParsedEmail | null {
   const subject = email.subject.replace(/^(?:re|fwd?)\s*:\s*/i, '').trim();
-  const body = email.body.replace(/\s+/g, ' ').slice(0, 4000);
+  const body = email.body.replace(/\s+/g, ' ').slice(0, 12000);
   const all = `${subject}\n${body}`;
 
   const isApplication =
