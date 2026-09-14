@@ -25,6 +25,7 @@ export interface Stats {
   interviews: number;
   offers: number;
   sentThisWeek: number;
+  sentToday: number;
   /** Share of sent applications that got any answer (including rejections). */
   responseRate: number | null;
 }
@@ -44,6 +45,7 @@ export function computeStats(apps: Application[], today: string): Stats {
       const age = daysBetween(a.dateApplied, today);
       return age >= 0 && age < 7;
     }).length,
+    sentToday: sent.filter((a) => a.dateApplied === today).length,
     responseRate: sent.length ? responded / sent.length : null,
   };
 }

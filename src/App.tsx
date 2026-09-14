@@ -31,6 +31,12 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Editing>(null);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [dailyTarget, setDailyTarget] = useState(() => {
+    const saved = readPref('dailyTarget');
+    if (saved === null) return 10;
+    const n = Number.parseInt(saved, 10);
+    return Number.isFinite(n) && n > 0 ? Math.min(99, n) : 0;
+  });
   const [toast, setToast] = useState<Toast | null>(null);
   const [storageOk, setStorageOk] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -40,6 +46,7 @@ export default function App() {
 
   useEffect(() => setStorageOk(saveApps(apps)), [apps]);
   useEffect(() => writePref('view', view), [view]);
+  useEffect(() => writePref('dailyTarget', String(dailyTarget)), [dailyTarget]);
 
   const appsRef = useRef(apps);
   useEffect(() => {
@@ -354,7 +361,7 @@ export default function App() {
           />
         ) : (
           <>
-            <Summary apps={apps} stats={stats} />
+            <Summary apps={apps} stats={stats} target={dailyTarget} onTargetChange={setDailyTarget} />
             {attention.length > 0 && (
               <Attention
                 items={attention}

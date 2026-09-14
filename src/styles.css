@@ -522,6 +522,85 @@ hr {
   font-size: 13.5px;
 }
 
+/* Daily target */
+.figure.goal {
+  margin-left: auto;
+}
+
+.goal-number {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.goal-number:hover .goal-of {
+  color: var(--ink);
+}
+
+.goal-of {
+  color: var(--ink-3);
+  font-size: 0.62em;
+  font-weight: 700;
+  margin-left: 1px;
+}
+
+.figure.goal.is-hit dd,
+.figure.goal.is-hit .goal-of {
+  color: var(--pen);
+}
+
+.goal-input {
+  width: 58px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--pen);
+  border-radius: 5px;
+  background: var(--paper);
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.goal-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--pen-soft);
+}
+
+.figure.goal dt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.goal-bar {
+  width: 116px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--rule-soft);
+  overflow: hidden;
+}
+
+.goal-bar i {
+  display: block;
+  height: 100%;
+  background: var(--pen);
+  transform-origin: left center;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.goal-note {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.figure.goal.is-hit .goal-note {
+  color: var(--pen);
+  font-weight: 600;
+}
+
 .pipeline {
   display: flex;
   gap: 3px;
