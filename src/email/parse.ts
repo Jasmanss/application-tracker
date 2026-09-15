@@ -1,6 +1,12 @@
 import { parseLooseDate, todayISO } from '../dates';
 import { CLOSED_STATUSES, type Application, type Status } from '../types';
 
+/**
+ * Bump when recognition improves. Auto-sync then forgets which emails it
+ * has already tried, so ones the old parser missed get another chance.
+ */
+export const PARSER_VERSION = 3;
+
 /** A raw email, from Gmail or pasted in by hand. */
 export interface EmailInput {
   from: string;

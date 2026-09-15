@@ -3,7 +3,7 @@ import { readPref, writePref } from '../storage';
 import type { Application } from '../types';
 import { applySuggestions, type ApplyResult } from './apply';
 import { fetchApplicationEmails, parseCandidates } from './gmail';
-import { reconcile, type Suggestion } from './parse';
+import { PARSER_VERSION, reconcile, type Suggestion } from './parse';
 
 const SEEN_CAP = 3000;
 
@@ -14,8 +14,16 @@ export function autoSyncEnabled(): boolean {
 function readSeen(): Set<string> {
   try {
     const raw = readPref('gmailSeenIds');
-    const list: unknown = raw ? JSON.parse(raw) : [];
-    return new Set(Array.isArray(list) ? (list as string[]) : []);
+    const data: unknown = raw ? JSON.parse(raw) : null;
+    // Versioned store: when the parser improves, forget what was "seen" and
+    // rewind the cursor so previously missed emails get re-read. Anything
+    // already imported just reconciles as a duplicate.
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      const stored = data as { v?: number; ids?: string[] };
+      if (stored.v === PARSER_VERSION) return new Set(stored.ids ?? []);
+    }
+    writePref('gmailAutoCursor', '');
+    return new Set();
   } catch {
     return new Set();
   }
@@ -26,7 +34,7 @@ export function markSeen(ids: string[]): void {
   if (ids.length === 0) return;
   const seen = readSeen();
   for (const id of ids) seen.add(id);
-  writePref('gmailSeenIds', JSON.stringify([...seen].slice(-SEEN_CAP)));
+  writePref('gmailSeenIds', JSON.stringify({ v: PARSER_VERSION, ids: [...seen].slice(-SEEN_CAP) }));
 }
 
 function sinceDate(): string {
@@ -61,6 +69,9 @@ export async function runAutoSync(apps: Application[]): Promise<AutoSyncOutcome>
 async function syncOnce(apps: Application[]): Promise<AutoSyncOutcome> {
   const clientId = readPref('gmailClientId')!;
   const today = todayISO();
+  // Read the seen-set first: a parser upgrade resets it and rewinds the
+  // cursor, and that wider range must apply to THIS pass.
+  const seen = readSeen();
   const since = sinceDate();
 
   let emails;
@@ -71,9 +82,8 @@ async function syncOnce(apps: Application[]): Promise<AutoSyncOutcome> {
     return { apps, added: 0, updated: 0, needsSignIn: true };
   }
 
-  const seen = readSeen();
   const fresh = emails.filter((e) => e.id && !seen.has(e.id));
-  const parsed = await parseCandidates(clientId, fresh, since);
+  const { parsed } = await parseCandidates(clientId, fresh, since);
   const suggestions: Suggestion[] = reconcile(parsed, apps).filter((s) => s.action !== 'skip');
 
   const result = applySuggestions(apps, suggestions, today);

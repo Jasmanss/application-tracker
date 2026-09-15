@@ -1533,6 +1533,38 @@ dialog.modal::backdrop {
   color: var(--pen);
 }
 
+.unread-list {
+  margin-top: 14px;
+  font-size: 13px;
+}
+
+.unread-list summary {
+  color: var(--ink-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.unread-list ul {
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unread-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 12px;
+  border-left: 2px solid var(--rule-soft);
+}
+
+.unread-list small {
+  color: var(--ink-3);
+}
+
 .sug-foot {
   display: flex;
   align-items: center;

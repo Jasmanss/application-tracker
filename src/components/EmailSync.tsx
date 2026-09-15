@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { addDays, formatDate, isISODate, todayISO } from '../dates';
+import { addDays, formatDate, isISODate, parseLooseDate, todayISO } from '../dates';
 import { fetchApplicationEmails, parseCandidates } from '../email/gmail';
-import { parseEmail, parsePastedEmail, reconcile, type Suggestion } from '../email/parse';
+import { parseEmail, parsePastedEmail, reconcile, type EmailInput, type Suggestion } from '../email/parse';
 import { readPref, writePref } from '../storage';
 import type { Application } from '../types';
 import { Stamp } from './Stamp';
@@ -31,6 +31,7 @@ export function EmailSync({ apps, initialTab = 'gmail', onImport, onClose }: Pro
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
+  const [unresolved, setUnresolved] = useState<EmailInput[]>([]);
   const [pasted, setPasted] = useState('');
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export function EmailSync({ apps, initialTab = 'gmail', onImport, onClose }: Pro
   function switchTab(next: Tab) {
     setTab(next);
     setSuggestions(null);
+    setUnresolved([]);
     setError('');
   }
 
@@ -57,8 +59,9 @@ export function EmailSync({ apps, initialTab = 'gmail', onImport, onClose }: Pro
     setSuggestions(null);
     try {
       const emails = await fetchApplicationEmails(clientId, since, (p) => setProgress(p.step));
-      const parsed = await parseCandidates(clientId, emails, since, (p) => setProgress(p.step));
+      const { parsed, unresolved: misses } = await parseCandidates(clientId, emails, since, (p) => setProgress(p.step));
       setSuggestions(reconcile(parsed, apps));
+      setUnresolved(misses.filter((m) => (parseLooseDate(m.date) || todayISO()) >= since));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'The scan failed. Try again in a minute.');
     } finally {
@@ -298,6 +301,26 @@ export function EmailSync({ apps, initialTab = 'gmail', onImport, onClose }: Pro
             )}
             {actionable.length === 0 && skipped > 0 && (
               <p className="field-hint">{skipped} matched applications you already track.</p>
+            )}
+            {unresolved.length > 0 && (
+              <details className="unread-list">
+                <summary>
+                  {unresolved.length} matched {unresolved.length === 1 ? 'email' : 'emails'} couldn’t be read
+                </summary>
+                <ul>
+                  {unresolved.slice(0, 20).map((u) => (
+                    <li key={u.id}>
+                      <span>{u.subject || '(no subject)'}</span>
+                      <small>
+                        {u.from.replace(/<[^>]*>/g, '').trim() || u.from} · {formatDate(parseLooseDate(u.date)) || '—'}
+                      </small>
+                    </li>
+                  ))}
+                </ul>
+                <p className="field-hint">
+                  Open one in Gmail and use the “Paste an email” tab — or add it by hand from Add application.
+                </p>
+              </details>
             )}
           </div>
         )}

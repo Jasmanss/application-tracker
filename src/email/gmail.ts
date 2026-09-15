@@ -137,9 +137,11 @@ async function gmailGet(token: string, path: string): Promise<Record<string, unk
 /** Inbox searches that catch confirmations, interviews, offers and rejections. */
 const QUERIES = [
   // Confirmation-style subjects from anyone.
-  'subject:("your application" OR "thank you for applying" OR "thanks for applying" OR "application received" OR "we received your application" OR "application was sent" OR "you applied" OR "application confirmation")',
+  'subject:("your application" OR "thank you for applying" OR "thanks for applying" OR "application received" OR "we received your application" OR "application was sent" OR "you applied" OR "application confirmation" OR "your submission" OR "application for" OR "your recent application" OR "thanks for your interest" OR "thank you for your interest")',
   // Anything from the big job platforms and applicant tracking systems.
-  'from:(linkedin.com OR indeed.com OR greenhouse.io OR lever.co OR ashbyhq.com OR myworkday.com OR myworkdayjobs.com OR icims.com OR smartrecruiters.com OR jobvite.com OR workable.com OR workablemail.com OR recruitee.com OR breezy.hr OR wellfound.com OR ziprecruiter.com OR bamboohr.com OR successfactors.com) ("application" OR "applied" OR "interview" OR "offer" OR "unfortunately")',
+  'from:(linkedin.com OR indeed.com OR greenhouse.io OR greenhouse-mail.io OR lever.co OR ashbyhq.com OR myworkday.com OR myworkdayjobs.com OR icims.com OR smartrecruiters.com OR jobvite.com OR workable.com OR workablemail.com OR recruitee.com OR breezy.hr OR wellfound.com OR ziprecruiter.com OR bamboohr.com OR successfactors.com OR taleo.net OR oraclecloud.com OR teamtailor.com OR personio.de OR personio.com OR eightfold.ai OR applytojob.com OR jazz.hr OR pinpointhq.com OR join.com OR otta.com OR glassdoor.com) ("application" OR "applied" OR "interview" OR "offer" OR "unfortunately")',
+  // Recruiting-style senders at any company (careers@, talent@, recruiting@…).
+  'from:(careers OR recruiting OR talent OR recruitment OR "no-reply" OR noreply OR jobs) ("your application" OR "applying" OR "we received" OR "interview" OR "your candidacy")',
   // Interview scheduling and rejections that skip the words above.
   '("your application" OR "your candidacy") ("interview" OR "unfortunately" OR "next steps" OR "move forward")',
 ];
@@ -209,8 +211,17 @@ export async function fetchApplicationEmails(
   onProgress({ step: 'Searching your inbox…' });
   const ids = new Set<string>();
   for (const q of QUERIES) {
-    const data = await gmailGet(token, `/messages?maxResults=100&q=${encodeURIComponent(q + after)}`);
-    for (const message of (data.messages as { id: string }[] | undefined) ?? []) ids.add(message.id);
+    // Follow result pages so heavy backfills aren't cut off at 100.
+    let pageToken = '';
+    for (let page = 0; page < 4; page++) {
+      const data = await gmailGet(
+        token,
+        `/messages?maxResults=100&q=${encodeURIComponent(q + after)}${pageToken ? `&pageToken=${pageToken}` : ''}`,
+      );
+      for (const message of (data.messages as { id: string }[] | undefined) ?? []) ids.add(message.id);
+      pageToken = String(data.nextPageToken ?? '');
+      if (!pageToken || ids.size > 600) break;
+    }
   }
 
   const all = [...ids];
@@ -240,19 +251,27 @@ export async function fetchApplicationEmails(
   return emails;
 }
 
+export interface ParseOutcome {
+  parsed: (ParsedEmail & { id?: string })[];
+  /** Emails that matched the search but couldn't be understood. */
+  unresolved: EmailInput[];
+}
+
 /**
  * Parses candidate emails into applications. Emails the snippet can't
  * identify get one more chance: the full message body is fetched (footers
  * often carry the only company mention, e.g. "Early talent programs at
- * Lyft"), and the parse is retried on the complete text.
+ * Lyft"), and the parse is retried on the complete text. Whatever still
+ * can't be read is returned so it can be shown, not swallowed.
  */
 export async function parseCandidates(
   clientId: string,
   emails: EmailInput[],
   sinceISO: string,
   onProgress: (progress: ScanProgress) => void = () => undefined,
-): Promise<(ParsedEmail & { id?: string })[]> {
+): Promise<ParseOutcome> {
   const parsed: (ParsedEmail & { id?: string })[] = [];
+  const retry: EmailInput[] = [];
   const unresolved: EmailInput[] = [];
 
   for (const email of emails) {
@@ -260,28 +279,31 @@ export async function parseCandidates(
     if (result) {
       if (result.date >= sinceISO) parsed.push({ ...result, id: email.id });
     } else if (email.id) {
-      unresolved.push(email);
+      retry.push(email);
     }
   }
 
-  if (unresolved.length > 0) {
+  if (retry.length > 0) {
     const token = await getToken(clientId, false);
-    for (let i = 0; i < unresolved.length; i += 5) {
-      onProgress({ step: `Reading ${Math.min(i + 5, unresolved.length)} of ${unresolved.length} in full…` });
-      const chunk = await Promise.all(
-        unresolved.slice(i, i + 5).map(async (email): Promise<(ParsedEmail & { id?: string }) | null> => {
+    for (let i = 0; i < retry.length; i += 5) {
+      onProgress({ step: `Reading ${Math.min(i + 5, retry.length)} of ${retry.length} in full…` });
+      await Promise.all(
+        retry.slice(i, i + 5).map(async (email) => {
           try {
             const message = await gmailGet(token, `/messages/${email.id}?format=full`);
             const body = extractBodyText(message.payload as MessagePart | undefined);
             const result = body ? parseEmail({ ...email, body: `${email.body}\n${body}` }) : null;
-            return result && result.date >= sinceISO ? { ...result, id: email.id } : null;
+            if (result) {
+              if (result.date >= sinceISO) parsed.push({ ...result, id: email.id });
+            } else {
+              unresolved.push(email);
+            }
           } catch {
-            return null; // one unreadable email never sinks the scan
+            unresolved.push(email); // one unreadable email never sinks the scan
           }
         }),
       );
-      parsed.push(...chunk.filter((r): r is ParsedEmail & { id?: string } => r !== null));
     }
   }
-  return parsed;
+  return { parsed, unresolved };
 }
