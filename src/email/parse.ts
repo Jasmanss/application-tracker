@@ -5,7 +5,7 @@ import { CLOSED_STATUSES, type Application, type Status } from '../types';
  * Bump when recognition improves. Auto-sync then forgets which emails it
  * has already tried, so ones the old parser missed get another chance.
  */
-export const PARSER_VERSION = 3;
+export const PARSER_VERSION = 4;
 
 /** A raw email, from Gmail or pasted in by hand. */
 export interface EmailInput {
@@ -14,6 +14,7 @@ export interface EmailInput {
   body: string;
   date: string;
   id?: string;
+  replyTo?: string;
 }
 
 /** What the parser managed to read out of one email. */
@@ -83,10 +84,15 @@ const PLATFORMS: [RegExp, string][] = [
   [/bamboohr/i, 'BambooHR'],
   [/monster\.com/i, 'Monster'],
   [/dice\.com/i, 'Dice'],
+  [/teamtailor/i, 'Teamtailor'],
+  [/personio/i, 'Personio'],
+  [/eightfold/i, 'Eightfold'],
+  [/jazz\.hr|applytojob/i, 'JazzHR'],
+  [/pinpointhq/i, 'Pinpoint'],
 ];
 
 const GENERIC_MAILBOX =
-  /^(no-?reply|noreply|do-?not-?reply|notifications?|jobs?|careers?|talent|recruiting|apply|applications?|hr|hello|hi|info|mail|email|team|support|updates?)$/i;
+  /^(no[-\s]?reply|do[-\s]?not[-\s]?reply|notifications?|jobs?|careers?|talent|recruiting|apply|applications?|hr|hello|hi|info|mail|email|team|support|updates?)$/i;
 
 const FREE_MAIL = /^(gmail|googlemail|yahoo|outlook|hotmail|live|icloud|me|aol|proton|protonmail|mail)$/i;
 
@@ -129,14 +135,54 @@ function cleanRole(raw: string): string {
 }
 
 /** "Acme Careers via Greenhouse <no-reply@greenhouse.io>" → display name + address. */
-function splitFrom(from: string): { name: string; user: string; domain: string } {
+function splitFrom(from: string): { name: string; user: string; domain: string; domainFull: string } {
   const addr = from.match(/<([^>]+)>/)?.[1] ?? (from.includes('@') ? from.trim() : '');
   const name = (from.match(/^\s*"?([^"<@]+?)"?\s*(?:<|$)/)?.[1] ?? '').split(/\s+via\s+/i)[0].trim();
-  const [user = '', domainFull = ''] = addr.toLowerCase().split('@');
-  const parts = domainFull.replace(/[>\s]/g, '').split('.');
+  const [user = '', rawDomain = ''] = addr.toLowerCase().split('@');
+  const domainFull = rawDomain.replace(/[>\s]/g, '');
+  const parts = domainFull.split('.');
   // "jobs.acme.com" → "acme"; crude but good enough for a guess.
   const domain = parts.length >= 2 ? parts[parts.length - 2] : (parts[0] ?? '');
-  return { name, user, domain };
+  return { name, user, domain, domainFull };
+}
+
+/** Slugs that are never a company, wherever they appear in an address. */
+const GENERIC_SLUG =
+  /^(no-?reply|noreply|do-?not-?reply|notifications?|jobs?|careers?|talent|recruiting|recruitment|apply|applications?|hr|hello|hi|info|mail|email|team|support|updates?|system|admin|workday|icims|inbound|outbound|postmaster)$/i;
+
+/**
+ * Many ATS addresses carry the company: "lyft@myworkday.com",
+ * "acme@talent.icims.com", "…@acme.recruitee.com".
+ */
+function companyFromAtsAddress(user: string, domainFull: string): string {
+  let slug = '';
+  if (/(?:^|\.)(?:myworkday(?:jobs)?|icims)\.com$/.test(domainFull)) {
+    slug = user;
+  } else {
+    slug =
+      domainFull.match(
+        /^([a-z0-9-]+)\.(?:mail\.teamtailor\.com|recruitee\.com|breezy\.hr|workablemail\.com|bamboohr\.com|greenhouse-mail\.io)$/,
+      )?.[1] ?? '';
+  }
+  if (!slug || GENERIC_SLUG.test(slug)) return '';
+  const words = slug
+    .split(/[-_.]/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+  return cleanCompany(words);
+}
+
+/** Company guess from one address's display name or domain (non-platform only). */
+function companyFromSender(sender: string): string {
+  const { name, user, domain, domainFull } = splitFrom(sender);
+  if (platformOf(`${name} ${user} ${domain}`)) return companyFromAtsAddress(user, domainFull);
+  if (name && !GENERIC_MAILBOX.test(name)) {
+    const fromName = cleanCompany(name);
+    if (fromName) return fromName;
+  }
+  if (domain && !FREE_MAIL.test(domain)) return cleanCompany(domain.charAt(0).toUpperCase() + domain.slice(1));
+  return '';
 }
 
 function platformOf(text: string): string {
@@ -168,6 +214,10 @@ const COMPANY_PATTERNS: RegExp[] = [
 
 /** Ordered patterns whose first capture group is the role. */
 const ROLE_PATTERNS: RegExp[] = [
+  // ATS template label lines: "Position: Data Analyst", "Job Title - X".
+  // The lookahead stops the capture before the next "Label:" in flattened text.
+  /(?:position|job title|role)\s*[:\-–]\s*([^\n,;|]{3,70}?)(?=\s+\w+\s*:|[.,;|\n]|$)/i,
+  /position of\s+["“]?([^\n,;."”]{3,70})/i,
   /you(?:'ve| have)? applied to (.+?) at /i,
   /application (?:for|to) (?:the )?([^,.:;\n]+?)(?: position| role| opening| opportunity| \(| at | with |[,.:;\n!]|$)/i,
   /applying (?:for|to) (?:the )?([^,.:;\n]+?)(?: position| role| opening| \(| at | with |[,.:;\n!]|$)/i,
@@ -195,20 +245,45 @@ function firstMatch(
   return '';
 }
 
+/** Recruiting-flavored local parts: careers@, talent@, recruiting@… */
+const RECRUITING_LOCAL = /(career|recruit|talent|hiring|people-?ops|jobs)/i;
+
+/** Short human gist for a status, given the email text for nuance. */
+export function gistFor(status: Status, text = ''): string {
+  if (status === 'offer') return 'Offer received';
+  if (status === 'rejected') return 'Not moving forward';
+  if (status === 'screening')
+    return /(assessment|take-?home|coding challenge|online test)/i.test(text)
+      ? 'Assessment requested'
+      : 'Screening call invite';
+  if (status === 'interviewing')
+    return /(schedule|availability|calendar)/i.test(text) ? 'Wants to schedule' : 'Interview invite';
+  return 'Application received';
+}
+
 /**
  * Reads one email and returns the application it describes, or null when
- * it doesn't look like a job application email at all.
+ * it doesn't look like a job application email at all. `knownCompanies`
+ * (the companies already on the board) rescues follow-ups that mention a
+ * tracked company without any parseable phrasing.
  */
-export function parseEmail(email: EmailInput): ParsedEmail | null {
+export function parseEmail(email: EmailInput, knownCompanies: string[] = []): ParsedEmail | null {
   const subject = email.subject.replace(/^(?:re|fwd?)\s*:\s*/i, '').trim();
   const body = email.body.replace(/\s+/g, ' ').slice(0, 12000);
   const all = `${subject}\n${body}`;
 
-  const isApplication =
-    RE_APPLIED.test(all) ||
-    ((RE_REJECTED.test(all) || RE_INTERVIEW.test(all) || RE_OFFER.test(all) || RE_SCREENING.test(all)) &&
-      /(application|applying|applied|candidacy|candidate|position|role|opening|recruit|hiring|job)/i.test(all));
-  if (!isApplication) return null;
+  const sender = splitFrom(email.from);
+  const reply = email.replyTo ? splitFrom(email.replyTo) : null;
+  const senderPlatform = platformOf(`${sender.name} ${sender.user} ${sender.domain}`);
+
+  // Two-signal gate: a clear confirmation counts double; otherwise the email
+  // needs both job wording and either stage wording or a recruiting-ish sender.
+  const statusish = RE_REJECTED.test(all) || RE_INTERVIEW.test(all) || RE_OFFER.test(all) || RE_SCREENING.test(all);
+  const jobNoun = /(application|applying|applied|candidacy|candidate|position|role|opening|recruit|hiring|job|resume)/i.test(all);
+  const recruitingSender =
+    !!senderPlatform || RECRUITING_LOCAL.test(sender.user) || (reply !== null && RECRUITING_LOCAL.test(reply.user));
+  const score = (RE_APPLIED.test(all) ? 2 : 0) + (statusish ? 1 : 0) + (jobNoun ? 1 : 0) + (recruitingSender ? 1 : 0);
+  if (score < 2) return null;
 
   const status: Status = RE_OFFER.test(all)
     ? 'offer'
@@ -220,35 +295,27 @@ export function parseEmail(email: EmailInput): ParsedEmail | null {
           ? 'screening'
           : 'applied';
 
-  const { name, user, domain } = splitFrom(email.from);
-  const senderPlatform = platformOf(`${name} ${user} ${domain}`);
-
   let company = firstMatch(COMPANY_PATTERNS, [subject, body], cleanCompany);
   if (company && platformOf(company) && !/^(LinkedIn|Indeed)$/i.test(company)) company = '';
-  if (!company && !senderPlatform && name && !GENERIC_MAILBOX.test(name)) company = cleanCompany(name);
-  if (!company && !senderPlatform && domain && !FREE_MAIL.test(domain)) {
-    company = cleanCompany(domain.charAt(0).toUpperCase() + domain.slice(1));
+  if (!company) company = companyFromSender(email.from);
+  if (!company && email.replyTo) company = companyFromSender(email.replyTo);
+  if (!company && knownCompanies.length > 0) {
+    // Exactly one tracked company mentioned in the email (or its addresses)?
+    const haystack = norm(`${all} ${sender.domainFull} ${reply?.domainFull ?? ''}`);
+    const hits = new Set(
+      knownCompanies.filter((k) => {
+        const nk = norm(k);
+        return nk.length >= 4 && haystack.includes(nk);
+      }),
+    );
+    if (hits.size === 1) company = [...hits][0];
   }
   if (!company) return null;
 
   // "applying to Stripe" must not become the role at Stripe.
   const role = firstMatch(ROLE_PATTERNS, [subject, body], cleanRole, (r) => norm(r) !== norm(company));
   const evidence = subject || `${body.slice(0, 90)}…`;
-
-  const gist =
-    status === 'offer'
-      ? 'Offer received'
-      : status === 'rejected'
-        ? 'Not moving forward'
-        : status === 'screening'
-          ? /(assessment|take-?home|coding challenge|online test)/i.test(all)
-            ? 'Assessment requested'
-            : 'Screening call invite'
-          : status === 'interviewing'
-            ? /(schedule|availability|calendar)/i.test(all)
-              ? 'Wants to schedule'
-              : 'Interview invite'
-            : 'Application received';
+  const gist = gistFor(status, all);
 
   return {
     company,

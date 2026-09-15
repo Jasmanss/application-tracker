@@ -83,7 +83,7 @@ async function syncOnce(apps: Application[]): Promise<AutoSyncOutcome> {
   }
 
   const fresh = emails.filter((e) => e.id && !seen.has(e.id));
-  const { parsed } = await parseCandidates(clientId, fresh, since);
+  const { parsed } = await parseCandidates(clientId, fresh, since, apps.map((a) => a.company));
   const suggestions: Suggestion[] = reconcile(parsed, apps).filter((s) => s.action !== 'skip');
 
   const result = applySuggestions(apps, suggestions, today);

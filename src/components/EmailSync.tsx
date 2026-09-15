@@ -27,6 +27,8 @@ export function EmailSync({ apps, initialTab = 'gmail', onImport, onClose }: Pro
     return saved && isISODate(saved) ? saved : addDays(todayISO(), -90);
   });
   const [autoSync, setAutoSync] = useState(() => readPref('gmailAutoSync') !== 'off');
+  const [aiKey, setAiKey] = useState(() => readPref('anthropicKey') ?? '');
+  const [aiKeyInput, setAiKeyInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
@@ -59,7 +61,13 @@ export function EmailSync({ apps, initialTab = 'gmail', onImport, onClose }: Pro
     setSuggestions(null);
     try {
       const emails = await fetchApplicationEmails(clientId, since, (p) => setProgress(p.step));
-      const { parsed, unresolved: misses } = await parseCandidates(clientId, emails, since, (p) => setProgress(p.step));
+      const { parsed, unresolved: misses } = await parseCandidates(
+        clientId,
+        emails,
+        since,
+        apps.map((a) => a.company),
+        (p) => setProgress(p.step),
+      );
       setSuggestions(reconcile(parsed, apps));
       setUnresolved(misses.filter((m) => (parseLooseDate(m.date) || todayISO()) >= since));
     } catch (e) {
@@ -72,7 +80,10 @@ export function EmailSync({ apps, initialTab = 'gmail', onImport, onClose }: Pro
 
   function readPasted() {
     setError('');
-    const parsed = parseEmail(parsePastedEmail(pasted));
+    const parsed = parseEmail(
+      parsePastedEmail(pasted),
+      apps.map((a) => a.company),
+    );
     if (!parsed) {
       setSuggestions(null);
       setError(
@@ -227,6 +238,67 @@ export function EmailSync({ apps, initialTab = 'gmail', onImport, onClose }: Pro
                     </small>
                   </span>
                 </label>
+
+                <div className="ai-box">
+                  <p className="ai-box-title">AI cleanup (optional)</p>
+                  {aiKey ? (
+                    <p className="modal-note">
+                      On — emails the patterns can’t read are sent to Claude under your key ({aiKey.slice(0, 11)}…
+                      {aiKey.slice(-4)}).{' '}
+                      <button
+                        type="button"
+                        className="link-btn"
+                        onClick={() => {
+                          setAiKey('');
+                          writePref('anthropicKey', '');
+                        }}
+                      >
+                        Remove key
+                      </button>
+                    </p>
+                  ) : (
+                    <>
+                      <p className="modal-note">
+                        Emails the patterns can’t read get sent to Claude for reading — pennies a month on your own
+                        Anthropic API key.{' '}
+                        <a
+                          href="https://github.com/Jasmanss/callback/blob/main/docs/ai-setup.md"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Setup guide ↗
+                        </a>{' '}
+                        Only unrecognized emails leave your browser, only to Anthropic, under your key.
+                      </p>
+                      <div className="setup-row">
+                        <label className="visually-hidden" htmlFor="ai-key">
+                          Anthropic API key
+                        </label>
+                        <input
+                          id="ai-key"
+                          type="password"
+                          placeholder="sk-ant-…"
+                          value={aiKeyInput}
+                          onChange={(e) => setAiKeyInput(e.target.value)}
+                          autoComplete="off"
+                        />
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={!aiKeyInput.trim().startsWith('sk-ant-')}
+                          onClick={() => {
+                            const key = aiKeyInput.trim();
+                            writePref('anthropicKey', key);
+                            setAiKey(key);
+                            setAiKeyInput('');
+                          }}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </>
             )}
           </>

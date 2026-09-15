@@ -1533,6 +1533,22 @@ dialog.modal::backdrop {
   color: var(--pen);
 }
 
+.ai-box {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--rule-soft);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-box-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .unread-list {
   margin-top: 14px;
   font-size: 13px;

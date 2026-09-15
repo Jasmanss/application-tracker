@@ -232,7 +232,7 @@ export async function fetchApplicationEmails(
       all.slice(i, i + 10).map(async (id) => {
         const message = await gmailGet(
           token,
-          `/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
+          `/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=Reply-To`,
         );
         const payload = message.payload as { headers?: { name: string; value: string }[] } | undefined;
         const header = (name: string) =>
@@ -242,6 +242,7 @@ export async function fetchApplicationEmails(
           from: header('From'),
           subject: header('Subject'),
           date: header('Date'),
+          replyTo: header('Reply-To'),
           body: decodeEntities(String(message.snippet ?? '')),
         };
       }),
@@ -268,14 +269,15 @@ export async function parseCandidates(
   clientId: string,
   emails: EmailInput[],
   sinceISO: string,
+  knownCompanies: string[] = [],
   onProgress: (progress: ScanProgress) => void = () => undefined,
 ): Promise<ParseOutcome> {
   const parsed: (ParsedEmail & { id?: string })[] = [];
   const retry: EmailInput[] = [];
-  const unresolved: EmailInput[] = [];
+  let unresolved: EmailInput[] = [];
 
   for (const email of emails) {
-    const result = parseEmail(email);
+    const result = parseEmail(email, knownCompanies);
     if (result) {
       if (result.date >= sinceISO) parsed.push({ ...result, id: email.id });
     } else if (email.id) {
@@ -292,11 +294,12 @@ export async function parseCandidates(
           try {
             const message = await gmailGet(token, `/messages/${email.id}?format=full`);
             const body = extractBodyText(message.payload as MessagePart | undefined);
-            const result = body ? parseEmail({ ...email, body: `${email.body}\n${body}` }) : null;
+            const full = body ? { ...email, body: `${email.body}\n${body}` } : email;
+            const result = body ? parseEmail(full, knownCompanies) : null;
             if (result) {
               if (result.date >= sinceISO) parsed.push({ ...result, id: email.id });
             } else {
-              unresolved.push(email);
+              unresolved.push(full); // keep the full text for the AI pass
             }
           } catch {
             unresolved.push(email); // one unreadable email never sinks the scan
@@ -305,5 +308,22 @@ export async function parseCandidates(
       );
     }
   }
+
+  // Optional AI tier: whatever the patterns couldn't read goes to Claude
+  // under the user's own key. Only runs when a key is saved.
+  const aiKey = readPref('anthropicKey');
+  if (aiKey && unresolved.length > 0) {
+    const batch = unresolved.slice(0, AI_CAP_PER_SCAN);
+    onProgress({ step: `Asking Claude about ${batch.length} unread ${batch.length === 1 ? 'email' : 'emails'}…` });
+    const { extractWithAI } = await import('./ai');
+    const aiParsed = await extractWithAI(aiKey, batch);
+    const resolvedIds = new Set(aiParsed.map((p) => p.id));
+    parsed.push(...aiParsed.filter((p) => p.date >= sinceISO));
+    unresolved = unresolved.filter((e) => !resolvedIds.has(e.id));
+  }
+
   return { parsed, unresolved };
 }
+
+/** Cost guard: at most this many emails go to the AI per scan. */
+const AI_CAP_PER_SCAN = 20;
